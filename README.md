@@ -35,6 +35,8 @@
   - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
 - [Auth.js](https://authjs.dev)
   - Simple and secure authentication
+  - Google OAuth integration
+  - Guest user support for quick access
 - Progressive Web App (PWA)
   - Installable on mobile and desktop devices
   - Offline support with service worker caching
@@ -75,6 +77,40 @@ pnpm dev
 ```
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
+
+## Authentication Setup
+
+### Google OAuth Configuration
+
+To enable Google sign-in, you'll need to set up OAuth credentials:
+
+1. **Create a Google Cloud Project**:
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+
+2. **Enable Google+ API**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Google+ API" and enable it
+
+3. **Create OAuth 2.0 Credentials**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
+   - Set application type to "Web application"
+   - Add authorized redirect URIs:
+     - `http://localhost:3000/api/auth/callback/google` (development)
+     - `https://yourdomain.com/api/auth/callback/google` (production)
+
+4. **Add Environment Variables**:
+   ```bash
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   ```
+
+### Supported Authentication Methods
+
+- **Google OAuth**: One-click sign-in with Google accounts
+- **Email/Password**: Traditional credential-based authentication
+- **Guest Access**: Temporary accounts for immediate access without registration
 
 ## Progressive Web App (PWA)
 

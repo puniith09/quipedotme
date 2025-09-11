@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from 'react';
 
 import { AuthForm } from '@/components/auth-form';
 import { SubmitButton } from '@/components/submit-button';
+import { GoogleSignInButton } from '@/components/google-signin-button';
 
 import { register, type RegisterActionState } from '../actions';
 import { toast } from '@/components/toast';
@@ -59,19 +60,29 @@ export default function Page() {
             Create an account with your email and password
           </p>
         </div>
-        <AuthForm action={handleSubmit} defaultEmail={email}>
-          <SubmitButton isSuccessful={isSuccessful}>Sign Up</SubmitButton>
-          <p className="mt-4 text-center text-gray-600 text-sm dark:text-zinc-400">
-            {'Already have an account? '}
-            <Link
-              href="/login"
-              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
-            >
-              Sign in
-            </Link>
-            {' instead.'}
-          </p>
-        </AuthForm>
+        <div className="flex flex-col gap-4">
+          <GoogleSignInButton />
+          
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">OR</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          
+          <AuthForm action={handleSubmit} defaultEmail={email}>
+            <SubmitButton isSuccessful={isSuccessful}>Sign Up</SubmitButton>
+            <p className="mt-4 text-center text-gray-600 text-sm dark:text-zinc-400">
+              {'Already have an account? '}
+              <Link
+                href="/login"
+                className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+              >
+                Sign in
+              </Link>
+              {' instead.'}
+            </p>
+          </AuthForm>
+        </div>
       </div>
     </div>
   );

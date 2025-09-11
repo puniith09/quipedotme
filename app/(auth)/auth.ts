@@ -1,7 +1,8 @@
 import { compare } from 'bcrypt-ts';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { createGuestUser, getUser } from '@/lib/db/queries';
+import Google from 'next-auth/providers/google';
+import { createGuestUser, getUser, createOrGetOAuthUser } from '@/lib/db/queries';
 import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
@@ -38,6 +39,10 @@ export const {
 } = NextAuth({
   ...authConfig,
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {},
       async authorize({ email, password }: any) {
@@ -72,10 +77,27 @@ export const {
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // Handle OAuth providers (Google)
+      if (account?.provider === 'google' && user.email) {
+        try {
+          const dbUser = await createOrGetOAuthUser(user.email);
+          user.id = dbUser.id;
+          user.type = 'regular';
+          return true;
+        } catch (error) {
+          console.error('Error creating/getting OAuth user:', error);
+          return false;
+        }
+      }
+      
+      // Handle credentials providers (existing logic)
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
-        token.type = user.type;
+        token.type = user.type || 'regular';
       }
 
       return token;
