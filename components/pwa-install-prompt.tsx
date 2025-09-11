@@ -22,13 +22,22 @@ export function PWAInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowInstallPrompt(true);
+      
+      // Check if we should show the prompt (not temporarily dismissed)
+      const tempDismissedUntil = localStorage.getItem('pwa-install-temp-dismissed');
+      const shouldShow = !tempDismissedUntil || Date.now() >= parseInt(tempDismissedUntil);
+      
+      if (shouldShow) {
+        setShowInstallPrompt(true);
+      }
     };
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setShowInstallPrompt(false);
       setDeferredPrompt(null);
+      // Clear any dismissal state since app is now installed
+      localStorage.removeItem('pwa-install-temp-dismissed');
     };
 
     // Check if app is already installed
@@ -39,11 +48,24 @@ export function PWAInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
+    // Set up a timer to check for temporary dismissal expiry
+    const checkDismissalTimer = setInterval(() => {
+      const tempDismissedUntil = localStorage.getItem('pwa-install-temp-dismissed');
+      if (tempDismissedUntil && Date.now() >= parseInt(tempDismissedUntil)) {
+        localStorage.removeItem('pwa-install-temp-dismissed');
+        // If we have a deferred prompt and app is not installed, show the prompt again
+        if (deferredPrompt && !isInstalled) {
+          setShowInstallPrompt(true);
+        }
+      }
+    }, 1000); // Check every second
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      clearInterval(checkDismissalTimer);
     };
-  }, []);
+  }, [deferredPrompt, isInstalled]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -53,6 +75,11 @@ export function PWAInstallPrompt() {
     
     if (outcome === 'accepted') {
       setShowInstallPrompt(false);
+    } else {
+      // If user dismissed the native prompt, hide temporarily but will show again on next visit
+      setShowInstallPrompt(false);
+      // Store a short-term dismissal (30 seconds) to avoid immediate re-showing
+      localStorage.setItem('pwa-install-temp-dismissed', (Date.now() + 30000).toString());
     }
     
     setDeferredPrompt(null);
@@ -60,18 +87,18 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowInstallPrompt(false);
-    // Remember user dismissed the prompt
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    // Only temporarily hide for 30 seconds instead of 7 days
+    localStorage.setItem('pwa-install-temp-dismissed', (Date.now() + 30000).toString());
   };
 
-  // Don't show if already installed or user dismissed recently
+  // Don't show if already installed
   if (isInstalled || !showInstallPrompt) {
     return null;
   }
 
-  // Check if user dismissed recently (within 7 days)
-  const dismissedTime = localStorage.getItem('pwa-install-dismissed');
-  if (dismissedTime && Date.now() - parseInt(dismissedTime) < 7 * 24 * 60 * 60 * 1000) {
+  // Check if user dismissed recently (only 30 seconds temporary dismissal)
+  const tempDismissedUntil = localStorage.getItem('pwa-install-temp-dismissed');
+  if (tempDismissedUntil && Date.now() < parseInt(tempDismissedUntil)) {
     return null;
   }
 
