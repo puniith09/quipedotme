@@ -5,6 +5,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { auth } from '../(auth)/auth';
 import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 
 export const experimental_ppr = true;
 
@@ -27,6 +28,7 @@ export default async function Layout({
           <AppSidebar user={session?.user} />
           <SidebarInset>{children}</SidebarInset>
         </SidebarProvider>
+        <PWAInstallPrompt />
       </DataStreamProvider>
     </>
   );

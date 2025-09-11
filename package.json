@@ -70,6 +70,7 @@
     "nanoid": "^5.0.8",
     "next": "15.3.0-canary.31",
     "next-auth": "5.0.0-beta.25",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.3.0",
     "orderedmap": "^2.1.1",
     "papaparse": "^5.5.2",
@@ -99,6 +100,7 @@
     "tokenlens": "^1.1.2",
     "use-stick-to-bottom": "^1.1.1",
     "usehooks-ts": "^3.1.0",
+    "workbox-webpack-plugin": "^7.3.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
