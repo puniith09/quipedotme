@@ -53,7 +53,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - manifest.json, service-worker.js, sw.js (PWA files)
+     * - icon-, apple-icon- (PWA icons)
+     * - offline, _offline (PWA offline pages)
      */
-    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest.json|service-worker.js|sw.js|icon-|apple-icon-|offline|_offline).*)',
   ],
 };

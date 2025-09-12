@@ -64,6 +64,30 @@ export async function createUser(email: string, password: string) {
   }
 }
 
+export async function createOrGetOAuthUser(email: string) {
+  try {
+    // First try to get existing user
+    const existingUsers = await getUser(email);
+    
+    if (existingUsers.length > 0) {
+      return existingUsers[0];
+    }
+    
+    // Create new user without password (OAuth user)
+    const [newUser] = await db.insert(user).values({ 
+      email, 
+      password: null 
+    }).returning({
+      id: user.id,
+      email: user.email,
+    });
+    
+    return newUser;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create OAuth user');
+  }
+}
+
 export async function createGuestUser() {
   const email = `guest-${Date.now()}`;
   const password = generateHashedPassword(generateUUID());

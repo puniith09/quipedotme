@@ -8,8 +8,42 @@ import { SessionProvider } from 'next-auth/react';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  title: 'Quipe Chat - AI-Powered Assistant',
+  description: 'Intelligent AI-powered chatbot with document creation, code execution, and multimodal capabilities',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Quipe Chat',
+    startupImage: [
+      {
+        url: '/icons/icon-192x192.svg',
+        media: '(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)',
+      },
+      {
+        url: '/icons/icon-384x384.svg',
+        media: '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)',
+      },
+      {
+        url: '/icons/icon-512x512.svg',
+        media: '(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'Quipe Chat',
+    title: 'Quipe Chat - AI-Powered Assistant',
+    description: 'Intelligent AI-powered chatbot with document creation, code execution, and multimodal capabilities',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Quipe Chat - AI-Powered Assistant',
+    description: 'Intelligent AI-powered chatbot with document creation, code execution, and multimodal capabilities',
+  },
 };
 
 export const viewport = {
@@ -69,6 +103,15 @@ export default async function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
+        <link rel="icon" href="/icons/icon-192x192.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Quipe Chat" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#000000" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
       </head>
       <body className="antialiased">
         <ThemeProvider

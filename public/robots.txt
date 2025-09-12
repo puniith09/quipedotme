@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://your-domain.com/sitemap.xml
+
+# Block access to admin/api endpoints in production
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+
+# Allow important PWA files
+Allow: /manifest.json
+Allow: /sw.js
+Allow: /icons/
+Allow: /screenshots/
