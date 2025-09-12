@@ -20,6 +20,10 @@ export function PWAInstallPrompt() {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('PWA: beforeinstallprompt event fired', {
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      });
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
@@ -27,12 +31,15 @@ export function PWAInstallPrompt() {
       const tempDismissedUntil = localStorage.getItem('pwa-install-temp-dismissed');
       const shouldShow = !tempDismissedUntil || Date.now() >= parseInt(tempDismissedUntil);
       
+      console.log('PWA: Should show prompt?', { shouldShow, tempDismissedUntil });
+      
       if (shouldShow) {
         setShowInstallPrompt(true);
       }
     };
 
     const handleAppInstalled = () => {
+      console.log('PWA: App installed event fired');
       setIsInstalled(true);
       setShowInstallPrompt(false);
       setDeferredPrompt(null);
@@ -41,10 +48,14 @@ export function PWAInstallPrompt() {
     };
 
     // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+    console.log('PWA: Standalone mode check', { isStandaloneMode, url: window.location.href });
+    
+    if (isStandaloneMode) {
       setIsInstalled(true);
     }
 
+    console.log('PWA: Setting up event listeners');
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
@@ -55,6 +66,7 @@ export function PWAInstallPrompt() {
         localStorage.removeItem('pwa-install-temp-dismissed');
         // If we have a deferred prompt and app is not installed, show the prompt again
         if (deferredPrompt && !isInstalled) {
+          console.log('PWA: Re-showing prompt after dismissal timeout');
           setShowInstallPrompt(true);
         }
       }
@@ -68,27 +80,38 @@ export function PWAInstallPrompt() {
   }, [deferredPrompt, isInstalled]);
 
   const handleInstallClick = async () => {
+    console.log('PWA: Install button clicked', { deferredPrompt: !!deferredPrompt });
     if (!deferredPrompt) return;
 
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      setShowInstallPrompt(false);
-    } else {
-      // If user dismissed the native prompt, hide temporarily but will show again on next visit
-      setShowInstallPrompt(false);
-      // Store a short-term dismissal (30 seconds) to avoid immediate re-showing
-      localStorage.setItem('pwa-install-temp-dismissed', (Date.now() + 30000).toString());
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('PWA: User choice outcome', { outcome });
+      
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false);
+      } else {
+        // If user dismissed the native prompt, hide temporarily but will show again on next visit
+        setShowInstallPrompt(false);
+        // Store a short-term dismissal (30 seconds) to avoid immediate re-showing
+        const dismissUntil = Date.now() + 30000;
+        localStorage.setItem('pwa-install-temp-dismissed', dismissUntil.toString());
+        console.log('PWA: Temporarily dismissed until', new Date(dismissUntil));
+      }
+    } catch (error) {
+      console.error('PWA: Error during install prompt', error);
     }
     
     setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
+    console.log('PWA: Dismiss button clicked');
     setShowInstallPrompt(false);
     // Only temporarily hide for 30 seconds instead of 7 days
-    localStorage.setItem('pwa-install-temp-dismissed', (Date.now() + 30000).toString());
+    const dismissUntil = Date.now() + 30000;
+    localStorage.setItem('pwa-install-temp-dismissed', dismissUntil.toString());
+    console.log('PWA: Temporarily dismissed until', new Date(dismissUntil));
   };
 
   // Don't show if already installed
