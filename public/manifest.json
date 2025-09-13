@@ -1,7 +1,7 @@
 {
-  "name": "Quipe Chat - AI-Powered Assistant",
-  "short_name": "Quipe Chat",
-  "description": "Intelligent AI-powered chatbot with document creation, code execution, and multimodal capabilities",
+  "name": "quipe",
+  "short_name": "quipe",
+  "description": "link in bio tool with AI-powered chat",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
