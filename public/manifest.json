@@ -19,9 +19,9 @@
       "url": "/",
       "icons": [
         {
-          "src": "/icons/icon-96x96.svg?v=2",
+          "src": "/icons/favicon.png",
           "sizes": "96x96",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     },
@@ -32,60 +32,60 @@
       "url": "/?history=true",
       "icons": [
         {
-          "src": "/icons/icon-96x96.svg?v=2",
+          "src": "/icons/favicon.png",
           "sizes": "96x96",
-          "type": "image/svg+xml"
+          "type": "image/png"
         }
       ]
     }
   ],
   "icons": [
     {
-      "src": "/icons/icon-72x72.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "72x72",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-96x96.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "96x96",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-128x128.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "128x128",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-144x144.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "144x144",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-152x152.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "152x152",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-192x192.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-384x384.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "384x384",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-512x512.svg?v=2",
+      "src": "/icons/favicon.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable any"
     },
     {
