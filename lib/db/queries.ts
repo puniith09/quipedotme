@@ -17,6 +17,8 @@ import postgres from 'postgres';
 
 import {
   user,
+  userPhotos,
+  socialLinks,
   chat,
   type User,
   document,
@@ -102,6 +104,138 @@ export async function createGuestUser() {
       'bad_request:database',
       'Failed to create guest user',
     );
+  }
+}
+
+export async function createUserWithProfile(
+  email: string, 
+  password: string, 
+  username: string,
+  displayName?: string,
+  bio?: string
+) {
+  const hashedPassword = generateHashedPassword(password);
+
+  try {
+    const [newUser] = await db.insert(user).values({ 
+      email, 
+      password: hashedPassword,
+      username,
+      displayName,
+      bio
+    }).returning();
+    
+    return newUser;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create user with profile');
+  }
+}
+
+export async function getUserByUsername(username: string) {
+  try {
+    return await db.select().from(user).where(eq(user.username, username));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get user by username',
+    );
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  profileData: {
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    profilePicture?: string;
+  }
+) {
+  try {
+    const [updatedUser] = await db
+      .update(user)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, userId))
+      .returning();
+    
+    return updatedUser;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update user profile');
+  }
+}
+
+export async function saveUserPhotos(userId: string, photos: { url: string; order: string }[]) {
+  try {
+    // Delete existing photos
+    await db.delete(userPhotos).where(eq(userPhotos.userId, userId));
+    
+    // Insert new photos
+    if (photos.length > 0) {
+      await db.insert(userPhotos).values(
+        photos.map(photo => ({
+          userId,
+          photoUrl: photo.url,
+          order: photo.order,
+        }))
+      );
+    }
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to save user photos');
+  }
+}
+
+export async function saveSocialLinks(userId: string, links: { platform: string; url: string; displayText?: string; order: string }[]) {
+  try {
+    // Delete existing social links
+    await db.delete(socialLinks).where(eq(socialLinks.userId, userId));
+    
+    // Insert new social links
+    if (links.length > 0) {
+      await db.insert(socialLinks).values(
+        links.map(link => ({
+          userId,
+          platform: link.platform,
+          url: link.url,
+          displayText: link.displayText,
+          order: link.order,
+        }))
+      );
+    }
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to save social links');
+  }
+}
+
+export async function getUserWithProfile(userId: string) {
+  try {
+    const userData = await db.select().from(user).where(eq(user.id, userId));
+    
+    if (userData.length === 0) {
+      return null;
+    }
+    
+    const photos = await db
+      .select()
+      .from(userPhotos)
+      .where(eq(userPhotos.userId, userId))
+      .orderBy(asc(userPhotos.order));
+    
+    const links = await db
+      .select()
+      .from(socialLinks)
+      .where(eq(socialLinks.userId, userId))
+      .orderBy(asc(socialLinks.order));
+    
+    return {
+      ...userData[0],
+      photos,
+      socialLinks: links,
+    };
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user with profile');
   }
 }
 

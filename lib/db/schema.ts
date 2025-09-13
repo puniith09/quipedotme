@@ -17,9 +17,41 @@ export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
+  username: varchar('username', { length: 32 }).unique(),
+  displayName: varchar('displayName', { length: 100 }),
+  bio: text('bio'),
+  profilePicture: text('profilePicture'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 });
 
 export type User = InferSelectModel<typeof user>;
+
+export const userPhotos = pgTable('UserPhotos', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  photoUrl: text('photoUrl').notNull(),
+  order: varchar('order', { length: 1 }).notNull(), // '1', '2', '3'
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+});
+
+export type UserPhoto = InferSelectModel<typeof userPhotos>;
+
+export const socialLinks = pgTable('SocialLinks', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  platform: varchar('platform', { length: 50 }).notNull(), // twitter, instagram, etc.
+  url: text('url').notNull(),
+  displayText: varchar('displayText', { length: 100 }),
+  order: varchar('order', { length: 1 }).notNull(), // '1', '2', '3', '4', '5', '6'
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+});
+
+export type SocialLink = InferSelectModel<typeof socialLinks>;
 
 export const chat = pgTable('Chat', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
