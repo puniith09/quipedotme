@@ -3,13 +3,13 @@ import { UserProfile } from '@/components/user-profile';
 import { getUserWithProfile, getUserByUsername } from '@/lib/db/queries';
 
 interface ProfilePageProps {
-  params: {
+  params: Promise<{
     username: string;
-  };
+  }>;
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
-  const { username } = params;
+  const { username } = await params;
   
   try {
     const [userByUsername] = await getUserByUsername(username);
@@ -38,7 +38,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 }
 
 export async function generateMetadata({ params }: ProfilePageProps) {
-  const { username } = params;
+  const { username } = await params;
   
   try {
     const [user] = await getUserByUsername(username);
