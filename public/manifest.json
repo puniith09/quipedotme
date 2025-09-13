@@ -43,7 +43,7 @@
       "src": "/images/q-chat-logo-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
