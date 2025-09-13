@@ -45,10 +45,10 @@
   ],
   "icons": [
     {
-      "src": "/icons/q-chat-logo.svg",
-      "sizes": "any",
+      "src": "/icons/q-chat-logo-maskable.svg",
+      "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
