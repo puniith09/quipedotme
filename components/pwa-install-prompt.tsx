@@ -105,14 +105,16 @@ export function PWAInstallPrompt() {
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-sm">
       <div className="flex items-center gap-3 rounded-lg border bg-background p-4 shadow-lg">
-        <Download className="h-5 w-5 text-primary" />
-        <div className="flex-1">
+        <div className="flex-shrink-0">
+          <Download className="h-6 w-6 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">Install Quipe Chat</p>
           <p className="text-xs text-muted-foreground">
             Add to home screen for quick access
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <Button size="sm" onClick={handleInstallClick}>
             Install
           </Button>
