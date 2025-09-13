@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-import { createUser, getUser, createUserWithProfile, getUserByUsername, saveUserPhotos, saveSocialLinks } from '@/lib/db/queries';
+import { createUser, getUser, createUserWithProfile, getUserByUsername, saveUserPhotos, saveSocialLinks, updateUserProfile } from '@/lib/db/queries';
 import { registerFormSchema } from '@/lib/types';
 
 import { signIn } from './auth';
@@ -119,24 +119,29 @@ export const register = async (
       validatedData.password,
       validatedData.username,
       validatedData.displayName,
-      validatedData.bio
+      validatedData.bio,
+      validatedData.profilePicture
     );
-
-    // Update profile picture if provided
-    if (validatedData.profilePicture) {
-      // In a real app, you'd handle file upload here
-      // For now, we'll just store the URL
-    }
 
     // Save photos if provided
     if (validatedData.photos && validatedData.photos.length > 0) {
+      console.log('Saving photos:', validatedData.photos);
       await saveUserPhotos(newUser.id, validatedData.photos);
     }
 
     // Save social links if provided
     if (validatedData.socialLinks && validatedData.socialLinks.length > 0) {
+      console.log('Saving social links:', validatedData.socialLinks);
       await saveSocialLinks(newUser.id, validatedData.socialLinks);
     }
+
+    console.log('User created with profile:', {
+      id: newUser.id,
+      username: newUser.username,
+      profilePicture: newUser.profilePicture,
+      photosCount: validatedData.photos?.length || 0,
+      socialLinksCount: validatedData.socialLinks?.length || 0
+    });
 
     // Sign in the user
     await signIn('credentials', {

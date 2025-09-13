@@ -112,7 +112,8 @@ export async function createUserWithProfile(
   password: string, 
   username: string,
   displayName?: string,
-  bio?: string
+  bio?: string,
+  profilePicture?: string
 ) {
   const hashedPassword = generateHashedPassword(password);
 
@@ -122,7 +123,8 @@ export async function createUserWithProfile(
       password: hashedPassword,
       username,
       displayName,
-      bio
+      bio,
+      profilePicture
     }).returning();
     
     return newUser;
