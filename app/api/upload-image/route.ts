@@ -1,58 +1,77 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const CLOUDFLARE_ACCOUNT_HASH = process.env.CLOUDFLARE_ACCOUNT_HASH;
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if environment variables are set
+    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_HASH) {
+      return NextResponse.json(
+        { error: 'Missing Cloudflare configuration' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
     if (!file) {
-      return Response.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
-    
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      return Response.json({ error: 'File must be an image' }, { status: 400 });
+      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
-    
+
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      return Response.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
     }
-    
+
+    // Prepare form data for Cloudflare
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
-    
+
+    // Upload to Cloudflare Images
     const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/images/v1`,
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/images/v1`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.CLOUDFLARE_IMAGES_API_TOKEN}`,
+          'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
         },
         body: uploadFormData,
       }
     );
-    
+
+    const result = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Cloudflare API error:', errorData);
-      return Response.json({ error: 'Upload failed' }, { status: 500 });
+      console.error('Cloudflare upload error:', result);
+      return NextResponse.json(
+        { error: 'Upload failed', details: result },
+        { status: 500 }
+      );
     }
+
+    // Return the image URL using Cloudflare Images delivery URL
+    const imageId = result.result.id;
+    const imageUrl = `https://imagedelivery.net/${CLOUDFLARE_ACCOUNT_HASH}/${imageId}/public`;
     
-    const data = await response.json();
-    
-    if (!data.success) {
-      console.error('Cloudflare upload failed:', data);
-      return Response.json({ error: 'Upload failed' }, { status: 500 });
-    }
-    
-    return Response.json({
-      url: data.result.variants[0], // Use the first variant URL
-      imageId: data.result.id,
+    return NextResponse.json({
+      success: true,
+      url: imageUrl,
+      id: imageId,
     });
-    
+
   } catch (error) {
-    console.error('Error uploading to Cloudflare Images:', error);
-    return Response.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

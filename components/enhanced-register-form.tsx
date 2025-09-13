@@ -6,9 +6,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Plus, X, Upload, User, Camera, Link, Loader2 } from 'lucide-react';
+import { Plus, X, Upload, User, Camera, Link } from 'lucide-react';
 import Form from 'next/form';
-import { uploadToCloudflareImages } from '@/lib/cloudflare-images';
 
 interface Photo {
   url: string;
@@ -51,25 +50,32 @@ export function EnhancedRegisterForm({
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [profilePicture, setProfilePicture] = useState<string>('');
   const [currentStep, setCurrentStep] = useState(1);
-  const [uploading, setUploading] = useState<{[key: string]: boolean}>({});
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = async (file: File, type: 'profile' | 'photo', index?: number) => {
-    const uploadKey = type === 'profile' ? 'profile' : `photo-${index}`;
-    setUploading(prev => ({ ...prev, [uploadKey]: true }));
-
+  const uploadFile = async (file: File): Promise<string | null> => {
+    setIsUploading(true);
     try {
-      const url = await uploadToCloudflareImages(file);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
       
-      if (type === 'profile') {
-        setProfilePicture(url);
-      } else if (type === 'photo' && index !== undefined) {
-        updatePhoto(index, url);
+      if (result.success) {
+        return result.url;
+      } else {
+        console.error('Upload failed:', result.error);
+        return null;
       }
     } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Upload failed. Please try again.');
+      console.error('Upload error:', error);
+      return null;
     } finally {
-      setUploading(prev => ({ ...prev, [uploadKey]: false }));
+      setIsUploading(false);
     }
   };
 
@@ -219,7 +225,7 @@ export function EnhancedRegisterForm({
           Tell us about yourself and add a profile picture
         </p>
         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-          � Files uploaded to Cloudflare Images
+          ✅ Images uploaded to Cloudflare
         </p>
       </div>
 
@@ -241,10 +247,13 @@ export function EnhancedRegisterForm({
             accept="image/*"
             className="hidden"
             id="profile-upload"
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) {
-                handleFileUpload(file, 'profile');
+                const url = await uploadFile(file);
+                if (url) {
+                  setProfilePicture(url);
+                }
               }
             }}
           />
@@ -252,14 +261,10 @@ export function EnhancedRegisterForm({
             type="button" 
             variant="outline" 
             size="icon"
-            disabled={uploading.profile}
+            disabled={isUploading}
             onClick={() => document.getElementById('profile-upload')?.click()}
           >
-            {uploading.profile ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
+            {isUploading ? '⏳' : <Upload className="h-4 w-4" />}
           </Button>
         </div>
         {profilePicture && (
@@ -296,7 +301,7 @@ export function EnhancedRegisterForm({
           Add up to 3 photos to showcase yourself
         </p>
         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-          � Files uploaded to Cloudflare Images
+          ✅ Images uploaded to Cloudflare
         </p>
       </div>
 
@@ -319,10 +324,13 @@ export function EnhancedRegisterForm({
                     accept="image/*"
                     className="hidden"
                     id={`photo-upload-${index}`}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        handleFileUpload(file, 'photo', index);
+                        const url = await uploadFile(file);
+                        if (url) {
+                          updatePhoto(index, url);
+                        }
                       }
                     }}
                   />
@@ -330,14 +338,10 @@ export function EnhancedRegisterForm({
                     type="button" 
                     variant="outline" 
                     size="icon"
-                    disabled={uploading[`photo-${index}`]}
+                    disabled={isUploading}
                     onClick={() => document.getElementById(`photo-upload-${index}`)?.click()}
                   >
-                    {uploading[`photo-${index}`] ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
+                    {isUploading ? '⏳' : <Upload className="h-4 w-4" />}
                   </Button>
                 </div>
                 {photo.url && (
