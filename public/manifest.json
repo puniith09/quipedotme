@@ -40,7 +40,7 @@
   ],
   "icons": [
     {
-      "src": "/images/q-chat-logo-maskable.svg",
+      "src": "/icons/q-chat-logo-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
