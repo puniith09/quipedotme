@@ -2,11 +2,8 @@
 
 import { signIn } from 'next-auth/react';
 import { Button } from './ui/button';
-import { useSearchParams } from 'next/navigation';
 
 export function GoogleSignInButton() {
-  const searchParams = useSearchParams();
-  
   const handleSignIn = () => {
     // Get current chat ID from URL to preserve conversation
     const currentPath = window.location.pathname;
