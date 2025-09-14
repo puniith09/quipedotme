@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { memo } from 'react';
-import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UseChatHelpers, UIMessage } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
 import { Suggestion } from './elements/suggestion';
@@ -11,7 +11,7 @@ interface SuggestedActionsProps {
   chatId: string;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   selectedVisibilityType: VisibilityType;
-  messages?: ChatMessage[];
+  messages?: Array<UIMessage>;
 }
 
 function PureSuggestedActions({
@@ -24,7 +24,7 @@ function PureSuggestedActions({
   const isOnboarding = messages.length === 1 && 
     messages[0]?.role === 'assistant' && 
     messages[0]?.parts?.some(part => 
-      part.type === 'text' && part.text?.includes('connect your Google account')
+      'text' in part && part.text?.includes('connect your Google account')
     );
 
   const suggestedActions = isOnboarding ? [
