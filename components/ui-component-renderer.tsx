@@ -1,6 +1,7 @@
 'use client';
 
 import { GoogleSignInButton } from '@/components/google-signin-button';
+import { InlineGoogleSignIn } from '@/components/inline-google-signin';
 import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { Card, CardBody } from '@heroui/card';
@@ -22,7 +23,7 @@ export function UIComponentRenderer({ component }: UIComponentRendererProps) {
         return (
           <Card className="max-w-sm">
             <CardBody className="p-4 text-center">
-              <GoogleSignInButton {...props} />
+              <InlineGoogleSignIn {...props} />
             </CardBody>
           </Card>
         );
