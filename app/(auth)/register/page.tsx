@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 
-import { AuthForm } from '@/components/auth-form';
+import { EnhancedRegisterForm } from '@/components/enhanced-register-form';
 import { SubmitButton } from '@/components/submit-button';
 import { GoogleSignInButton } from '@/components/google-signin-button';
 
@@ -30,6 +30,8 @@ export default function Page() {
   useEffect(() => {
     if (state.status === 'user_exists') {
       toast({ type: 'error', description: 'Account already exists!' });
+    } else if (state.status === 'username_taken') {
+      toast({ type: 'error', description: 'Username is already taken!' });
     } else if (state.status === 'failed') {
       toast({ type: 'error', description: 'Failed to create account!' });
     } else if (state.status === 'invalid_data') {
@@ -69,19 +71,20 @@ export default function Page() {
             <div className="h-px flex-1 bg-border" />
           </div>
           
-          <AuthForm action={handleSubmit} defaultEmail={email}>
-            <SubmitButton isSuccessful={isSuccessful}>Sign Up</SubmitButton>
-            <p className="mt-4 text-center text-gray-600 text-sm dark:text-zinc-400">
-              {'Already have an account? '}
-              <Link
-                href="/login"
-                className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
-              >
-                Sign in
-              </Link>
-              {' instead.'}
-            </p>
-          </AuthForm>
+          <EnhancedRegisterForm action={handleSubmit} defaultEmail={email}>
+            <SubmitButton isSuccessful={isSuccessful}>Create Account</SubmitButton>
+          </EnhancedRegisterForm>
+          
+          <p className="mt-4 text-center text-gray-600 text-sm dark:text-zinc-400">
+            {'Already have an account? '}
+            <Link
+              href="/login"
+              className="font-semibold text-gray-800 hover:underline dark:text-zinc-200"
+            >
+              Sign in
+            </Link>
+            {' instead.'}
+          </p>
         </div>
       </div>
     </div>

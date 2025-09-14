@@ -279,13 +279,15 @@ function PureMultimodalInput({
         )}
       </AnimatePresence>
 
-      {messages.length === 0 &&
+      {(messages.length === 0 || 
+        (messages.length === 1 && messages[0]?.role === 'assistant')) &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
           <SuggestedActions
             sendMessage={sendMessage}
             chatId={chatId}
             selectedVisibilityType={selectedVisibilityType}
+            messages={messages}
           />
         )}
 

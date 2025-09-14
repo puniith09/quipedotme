@@ -70,6 +70,14 @@ export function DataStreamHandler() {
               status: 'idle',
             };
 
+          case 'data-uiComponent':
+            // Store UI component data for rendering
+            return {
+              ...draftArtifact,
+              uiComponent: delta.data,
+              status: 'streaming',
+            };
+
           default:
             return draftArtifact;
         }

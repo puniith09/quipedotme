@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { memo } from 'react';
-import type { UseChatHelpers } from '@ai-sdk/react';
+import type { UseChatHelpers, UIMessage } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
 import { Suggestion } from './elements/suggestion';
@@ -11,14 +11,39 @@ interface SuggestedActionsProps {
   chatId: string;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   selectedVisibilityType: VisibilityType;
+  messages?: Array<UIMessage>;
 }
 
 function PureSuggestedActions({
   chatId,
   sendMessage,
   selectedVisibilityType,
+  messages = [],
 }: SuggestedActionsProps) {
-  const suggestedActions = [
+  // Check if this is an onboarding flow
+  const isGuestOnboarding = messages.length === 1 && 
+    messages[0]?.role === 'assistant' && 
+    messages[0]?.parts?.some(part => 
+      'text' in part && part.text?.includes('connect your Google account')
+    );
+    
+  const isPostSignInOnboarding = messages.length === 1 && 
+    messages[0]?.role === 'assistant' && 
+    messages[0]?.parts?.some(part => 
+      'text' in part && part.text?.includes('choosing your username')
+    );
+
+  const suggestedActions = isGuestOnboarding ? [
+    'Yes, let\'s do it!',
+    'Sure, sounds good',
+    'Maybe later',
+    'Tell me more first'
+  ] : isPostSignInOnboarding ? [
+    'Let\'s pick a username!',
+    'Yes, start with username',
+    'Help me choose one',
+    'What are the rules?'
+  ] : [
     'What are the advantages of using Next.js?',
     "Write code to demonstrate Dijkstra's algorithm",
     'Help me write an essay about Silicon Valley',

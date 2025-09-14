@@ -4,11 +4,24 @@ import { signIn } from 'next-auth/react';
 import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
+  const handleSignIn = () => {
+    // Get current path to preserve username context
+    const currentPath = window.location.pathname;
+    
+    // If we're on a username page, stay there with onboarding flag
+    // If we're elsewhere, go to home with onboarding
+    const callbackUrl = currentPath !== '/' && !currentPath.includes('/chat') && !currentPath.includes('/auth')
+      ? `${currentPath}?onboarding=true`
+      : '/?onboarding=true';
+      
+    signIn('google', { callbackUrl });
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/' })}
+      onClick={handleSignIn}
       className="w-full"
     >
       <svg

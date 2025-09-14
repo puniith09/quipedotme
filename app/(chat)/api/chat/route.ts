@@ -24,8 +24,9 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
+import { renderUIComponent } from '@/lib/ai/tools/render-ui-component';
 import { getWeather } from '@/lib/ai/tools/get-weather';
-import { isProductionEnvironment } from '@/lib/constants';
+import { isProductionEnvironment, guestRegex } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
@@ -80,11 +81,17 @@ export async function POST(request: Request) {
       message,
       selectedChatModel,
       selectedVisibilityType,
+      isOnboarding,
+      targetUsername,
+      isUsernameAvailable,
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel['id'];
       selectedVisibilityType: VisibilityType;
+      isOnboarding?: boolean;
+      targetUsername?: string;
+      isUsernameAvailable?: boolean;
     } = requestBody;
 
     const session = await auth();
@@ -135,6 +142,10 @@ export async function POST(request: Request) {
       country,
     };
 
+    // Check if user is guest for onboarding context, or if explicitly in onboarding mode
+    const isGuest = session.user.email ? guestRegex.test(session.user.email) : false;
+    const shouldUseOnboardingPrompt = isGuest || isOnboarding;
+
     await saveMessages({
       messages: [
         {
@@ -157,7 +168,7 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPrompt({ selectedChatModel, requestHints, isGuest: shouldUseOnboardingPrompt }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
@@ -168,6 +179,7 @@ export async function POST(request: Request) {
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
+                  'renderUIComponent',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
@@ -178,6 +190,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            renderUIComponent: renderUIComponent({ dataStream }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

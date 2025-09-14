@@ -21,6 +21,7 @@ import { cn, sanitizeText } from '@/lib/utils';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
+import { UIComponentRenderer } from './ui-component-renderer';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
@@ -258,6 +259,41 @@ const PurePreviewMessage = ({
                               type="request-suggestions"
                               result={part.output}
                               isReadonly={isReadonly}
+                            />
+                          )
+                        }
+                        errorText={undefined}
+                      />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            if (type === 'tool-renderUIComponent') {
+              const { toolCallId, state } = part;
+
+              return (
+                <Tool key={toolCallId} defaultOpen={true}>
+                  <ToolHeader type="tool-renderUIComponent" state={state} />
+                  <ToolContent>
+                    {state === 'input-available' && (
+                      <ToolInput input={part.input} />
+                    )}
+                    {state === 'output-available' && part.output && (
+                      <ToolOutput
+                        output={
+                          'error' in part.output ? (
+                            <div className="rounded border p-2 text-red-500">
+                              Error: {String(part.output.error)}
+                            </div>
+                          ) : (
+                            <UIComponentRenderer 
+                              component={{
+                                type: part.input.componentType,
+                                props: part.input.props || {},
+                                message: part.input.message
+                              }} 
                             />
                           )
                         }
