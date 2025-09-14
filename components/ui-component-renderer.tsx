@@ -1,6 +1,7 @@
 'use client';
 
 import { GoogleSignInButton } from '@/components/google-signin-button';
+import { UsernameInput } from '@/components/username-input';
 import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { Card, CardBody } from '@heroui/card';
@@ -28,19 +29,7 @@ export function UIComponentRenderer({ component }: UIComponentRendererProps) {
         );
       case 'username-input':
         return (
-          <Card className="max-w-sm">
-            <CardBody className="p-4 space-y-3">
-              <Input
-                placeholder="Enter username..."
-                startContent="@"
-                variant="bordered"
-                {...props}
-              />
-              <Button color="primary" size="sm" className="w-full">
-                Continue
-              </Button>
-            </CardBody>
-          </Card>
+          <UsernameInput {...props} />
         );
       case 'profile-form':
         return (

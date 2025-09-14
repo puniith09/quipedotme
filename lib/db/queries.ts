@@ -167,6 +167,33 @@ export async function updateUserProfile(
   }
 }
 
+export async function claimUsername(userId: string, username: string) {
+  try {
+    // First check if username is available
+    const existingUsers = await getUserByUsername(username);
+    if (existingUsers.length > 0) {
+      throw new ChatSDKError('bad_request:database', 'Username is already taken');
+    }
+
+    // Update user with the claimed username
+    const [updatedUser] = await db
+      .update(user)
+      .set({
+        username,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, userId))
+      .returning();
+    
+    return updatedUser;
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError('bad_request:database', 'Failed to claim username');
+  }
+}
+
 export async function saveUserPhotos(userId: string, photos: { url: string; order: string }[]) {
   try {
     // Delete existing photos
