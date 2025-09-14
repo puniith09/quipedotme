@@ -51,7 +51,9 @@ export default async function UsernamePage({ params, searchParams }: UsernamePag
     : session?.user?.id 
       ? isUsernameAvailable 
         ? `claim-${username}-${session.user.id}`
-        : `user-${session.user.id}-to-${targetUser.id}`
+        : targetUser 
+          ? `user-${session.user.id}-to-${targetUser.id}`
+          : generateUUID()
       : generateUUID();
   
   // Initial messages based on context
