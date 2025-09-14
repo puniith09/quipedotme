@@ -4,29 +4,11 @@ import { signIn } from 'next-auth/react';
 import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
-  const handleSignIn = () => {
-    // Save conversation state before redirect
-    const conversationState = {
-      isOnboarding: true,
-      timestamp: Date.now(),
-      path: window.location.pathname,
-      hash: window.location.hash
-    };
-    
-    // Store in sessionStorage to persist across redirect
-    sessionStorage.setItem('conversationState', JSON.stringify(conversationState));
-    
-    // Use current page as callback to stay in the conversation
-    signIn('google', { 
-      callbackUrl: window.location.href + '?onboarding=true'
-    });
-  };
-
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={handleSignIn}
+      onClick={() => signIn('google', { callbackUrl: '/' })}
       className="w-full"
     >
       <svg

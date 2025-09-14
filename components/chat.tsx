@@ -119,28 +119,6 @@ export function Chat({
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
 
-  // Listen for onboarding continuation after authentication
-  useEffect(() => {
-    const handleContinueOnboarding = (event: CustomEvent) => {
-      const { user, previousState } = event.detail;
-      
-      // Send a message to continue the onboarding flow
-      sendMessage({
-        role: 'user' as const,
-        parts: [{ 
-          type: 'text', 
-          text: `Great! I've successfully signed in with Google as ${user.name || user.email}. What's next in setting up my profile?` 
-        }],
-      });
-    };
-
-    window.addEventListener('continueOnboarding', handleContinueOnboarding as EventListener);
-    
-    return () => {
-      window.removeEventListener('continueOnboarding', handleContinueOnboarding as EventListener);
-    };
-  }, [sendMessage]);
-
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
     fetcher,
