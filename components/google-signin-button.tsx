@@ -4,11 +4,18 @@ import { signIn } from 'next-auth/react';
 import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
+  const handleSignIn = () => {
+    // Use current page as callback to stay in the conversation
+    signIn('google', { 
+      callbackUrl: window.location.href 
+    });
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/' })}
+      onClick={handleSignIn}
       className="w-full"
     >
       <svg

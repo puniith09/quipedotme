@@ -15,21 +15,14 @@ export function InlineGoogleSignIn({ onSuccess, onError }: InlineGoogleSignInPro
   const handleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Use popup instead of redirect
-      const result = await signIn('google', { 
-        redirect: false,
-        callbackUrl: window.location.href
+      // Use the current page as callback to stay in the conversation
+      await signIn('google', { 
+        callbackUrl: window.location.href,
+        redirect: true // This will redirect but to the same page
       });
-      
-      if (result?.ok) {
-        onSuccess?.(result);
-      } else {
-        onError?.(result?.error || 'Sign-in failed');
-      }
     } catch (error) {
-      onError?.(error);
-    } finally {
       setIsLoading(false);
+      onError?.(error);
     }
   };
 

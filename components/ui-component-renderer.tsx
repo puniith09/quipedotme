@@ -23,7 +23,7 @@ export function UIComponentRenderer({ component }: UIComponentRendererProps) {
         return (
           <Card className="max-w-sm">
             <CardBody className="p-4 text-center">
-              <InlineGoogleSignIn {...props} />
+              <GoogleSignInButton {...props} />
             </CardBody>
           </Card>
         );
