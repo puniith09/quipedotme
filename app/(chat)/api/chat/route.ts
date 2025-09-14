@@ -82,12 +82,16 @@ export async function POST(request: Request) {
       selectedChatModel,
       selectedVisibilityType,
       isOnboarding,
+      targetUsername,
+      isUsernameAvailable,
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel['id'];
       selectedVisibilityType: VisibilityType;
       isOnboarding?: boolean;
+      targetUsername?: string;
+      isUsernameAvailable?: boolean;
     } = requestBody;
 
     const session = await auth();

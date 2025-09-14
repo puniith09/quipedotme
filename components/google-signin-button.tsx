@@ -5,12 +5,13 @@ import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
   const handleSignIn = () => {
-    // Get current chat ID from URL to preserve conversation
+    // Get current path to preserve username context
     const currentPath = window.location.pathname;
-    const chatId = currentPath.includes('/chat/') ? currentPath.split('/chat/')[1] : null;
     
-    const callbackUrl = chatId 
-      ? `/?onboarding=true&chatId=${chatId}`
+    // If we're on a username page, stay there with onboarding flag
+    // If we're elsewhere, go to home with onboarding
+    const callbackUrl = currentPath !== '/' && !currentPath.includes('/chat') && !currentPath.includes('/auth')
+      ? `${currentPath}?onboarding=true`
       : '/?onboarding=true';
       
     signIn('google', { callbackUrl });
