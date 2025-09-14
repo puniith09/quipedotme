@@ -6,6 +6,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { guestRegex } from '@/lib/constants';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { getChatsByUserId } from '@/lib/db/queries';
 import { auth } from '../(auth)/auth';
 
 export default async function Page({
@@ -28,6 +29,28 @@ export default async function Page({
   if (isOnboarding && chatId) {
     redirect(`/chat/${chatId}?onboarding=true`);
   }
+
+  // For existing users (not guests), check if they have previous chats
+  let redirectToExistingChat = false;
+  if (!isGuest && session?.user?.id && !chatId && !isOnboarding) {
+    try {
+      const userChats = await getChatsByUserId({
+        id: session.user.id,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: null,
+      });
+      
+      // If user has existing chats, redirect to the most recent one
+      if (userChats.chats && userChats.chats.length > 0) {
+        const mostRecentChat = userChats.chats[0];
+        redirect(`/chat/${mostRecentChat.id}`);
+      }
+    } catch (error) {
+      console.error('Error fetching user chats:', error);
+      // Continue with new chat creation if there's an error
+    }
+  }
   
   // Use chat ID from URL if available (to continue existing conversation)
   // Or generate new one for fresh conversations
@@ -38,6 +61,7 @@ export default async function Page({
   
   if (!chatId) {
     if (isGuest) {
+      // Guest user - show signup flow
       initialMessages = [
         {
           id: generateUUID(),
@@ -54,6 +78,7 @@ export default async function Page({
         }
       ];
     } else if (isOnboarding) {
+      // Returning from Google sign-in
       initialMessages = [
         {
           id: generateUUID(),
@@ -62,6 +87,25 @@ export default async function Page({
             {
               type: 'text' as const,
               text: `🎉 Awesome! Welcome ${session?.user?.name || 'to the team'}! You're all signed in.\n\nNow let's create your amazing link bio! I'll help you set up:\n\n✨ Your unique username\n📸 Profile photos (up to 3)\n🔗 Social media links (up to 6)\n💫 And more!\n\nShall we start by choosing your username?`
+            }
+          ],
+          metadata: {
+            createdAt: new Date().toISOString(),
+          },
+        }
+      ];
+    } else if (session?.user && !isGuest) {
+      // Existing user starting new conversation
+      initialMessages = [
+        {
+          id: generateUUID(),
+          role: 'assistant' as const,
+          parts: [
+            {
+              type: 'text' as const,
+              text: `👋 Welcome back, ${session.user.name || 'there'}! 
+
+I'm your AI assistant, ready to help you with anything you need. How can I assist you today?`
             }
           ],
           metadata: {
