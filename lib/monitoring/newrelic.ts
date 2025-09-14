@@ -222,32 +222,67 @@ export const initializeNewRelic = () => {
   const visitCount = parseInt(localStorage.getItem('quipe_visit_count') || '0') + 1;
   localStorage.setItem('quipe_visit_count', visitCount.toString());
 
-  // Browser monitoring initialization script
+  // Browser monitoring initialization script with CORS-friendly configuration
   const initScript = document.createElement('script');
   initScript.type = 'text/javascript';
   initScript.innerHTML = `
-    ;window.NREUM||(NREUM={});NREUM.init={distributed_tracing:{enabled:true},privacy:{cookies_enabled:true},ajax:{deny_list:["bam.nr-data.net"]}};
-    NREUM.loader_config={accountID:"${accountId}",trustKey:"${accountId}",agentID:"${applicationId}",licenseKey:"${licenseKey}",applicationID:"${applicationId}"};
-    NREUM.info={beacon:"bam.nr-data.net",errorBeacon:"bam.nr-data.net",licenseKey:"${licenseKey}",applicationID:"${applicationId}",sa:1};
+    ;window.NREUM||(NREUM={});
+    NREUM.init={
+      distributed_tracing:{enabled:true},
+      privacy:{cookies_enabled:true},
+      ajax:{
+        deny_list:[],
+        block_internal:false,
+        enabled:true,
+        harvestTimeSeconds:10,
+        autoStart:true
+      },
+      page_view_event:{enabled:true},
+      page_action:{enabled:true}
+    };
+    NREUM.loader_config={
+      accountID:"${accountId}",
+      trustKey:"${accountId}",
+      agentID:"${applicationId}",
+      licenseKey:"${licenseKey}",
+      applicationID:"${applicationId}",
+      xpid:"VQ4GVV5SCRAEVlNTBwgBVw=="
+    };
+    NREUM.info={
+      beacon:"bam-cell.nr-data.net",
+      errorBeacon:"bam-cell.nr-data.net",
+      licenseKey:"${licenseKey}",
+      applicationID:"${applicationId}",
+      sa:1
+    };
   `;
   document.head.appendChild(initScript);
 
-  // Load the actual New Relic agent
+  // Load the actual New Relic agent with better error handling
   const agentScript = document.createElement('script');
-  agentScript.src = 'https://js-agent.newrelic.com/nr-loader-spa-1.293.0.min.js';
+  agentScript.src = 'https://js-agent.newrelic.com/nr-spa-1.293.0.min.js';
   agentScript.async = true;
+  agentScript.crossOrigin = 'anonymous';
+  
   agentScript.onload = () => {
+    console.log('New Relic agent loaded successfully');
     // Check immediately and then poll
     if (!checkNewRelicReady()) {
       const readinessCheck = setInterval(() => {
         if (checkNewRelicReady()) {
           clearInterval(readinessCheck);
+          console.log('New Relic agent is ready');
         }
       }, 100);
       
       // Stop checking after 10 seconds
       setTimeout(() => {
         clearInterval(readinessCheck);
+        if (!isNewRelicReady) {
+          console.warn('New Relic agent failed to initialize within timeout');
+          // Try fallback initialization
+          initializeFallbackNewRelic();
+        }
       }, 10000);
     }
   };
@@ -257,6 +292,38 @@ export const initializeNewRelic = () => {
   };
   
   document.head.appendChild(agentScript);
+};
+
+// Fallback initialization for when the main agent fails to load
+const initializeFallbackNewRelic = () => {
+  console.log('Initializing fallback New Relic monitoring');
+  
+  // Create a minimal mock New Relic object to prevent errors
+  if (!window.newrelic) {
+    window.newrelic = {
+      addPageAction: (name: string, attributes: any) => {
+        console.log('Fallback New Relic - Page Action:', name, attributes);
+        // You could send these to an alternative endpoint or queue them
+      },
+      noticeError: (error: Error, attributes?: any) => {
+        console.log('Fallback New Relic - Error:', error, attributes);
+      },
+      setCustomAttribute: (name: string, value: any) => {
+        console.log('Fallback New Relic - Custom Attribute:', name, value);
+      }
+    };
+  }
+  
+  // Mark as ready so events can be processed
+  isNewRelicReady = true;
+  
+  // Process any queued events
+  while (eventQueue.length > 0) {
+    const event = eventQueue.shift();
+    if (event) {
+      window.newrelic.addPageAction(event.eventName, event.attributes);
+    }
+  }
 };
 
 // Enhanced New Relic API for the quipedotme application
