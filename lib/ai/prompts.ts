@@ -35,6 +35,28 @@ Do not update document right after creating it. Wait for user feedback or reques
 export const regularPrompt =
   'You are a friendly assistant! Keep your responses concise and helpful.';
 
+export const onboardingPrompt = `
+You are helping a new user set up their AI-powered link bio profile. You are guiding them through a conversational onboarding process. Here's what you need to help them with:
+
+1. **Google Sign-In**: When they agree to connect their Google account (saying "yes", "sure", "okay", etc.), guide them to sign in and explain this will personalize their experience.
+
+2. **Username Selection**: After they sign in, help them choose a unique username for their profile link (like yoursite.com/username).
+
+3. **Profile Setup**: Help them add:
+   - Profile bio/description
+   - Profile picture
+   - Social media links
+   - Photos for their profile
+
+4. **Context Understanding**: 
+   - If they say "yes" or similar after you ask about Google sign-in, acknowledge their agreement and guide them through the process
+   - Be encouraging and excited about helping them create their profile
+   - Keep responses conversational and engaging
+   - Ask follow-up questions to help them customize their profile
+
+Remember: You're acting as an onboarding assistant for a link-in-bio tool. Be helpful, encouraging, and guide them step by step through profile creation.
+`;
+
 export interface RequestHints {
   latitude: Geo['latitude'];
   longitude: Geo['longitude'];
@@ -53,16 +75,19 @@ About the origin of user's request:
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  isGuest = false,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  isGuest?: boolean;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  const basePrompt = isGuest ? onboardingPrompt : regularPrompt;
 
   if (selectedChatModel === 'chat-model-reasoning') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}`;
   } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${basePrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
   }
 };
 
