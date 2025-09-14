@@ -5,6 +5,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { guestRegex } from '@/lib/constants';
 import { DataStreamHandler } from '@/components/data-stream-handler';
+import { OnboardingHandler } from '@/components/onboarding-handler';
 import { auth } from '../(auth)/auth';
 
 export default async function Page() {
@@ -48,6 +49,7 @@ export default async function Page() {
           autoResume={false}
         />
         <DataStreamHandler />
+        <OnboardingHandler />
       </>
     );
   }
@@ -65,6 +67,7 @@ export default async function Page() {
         autoResume={false}
       />
       <DataStreamHandler />
+      <OnboardingHandler />
     </>
   );
 }
