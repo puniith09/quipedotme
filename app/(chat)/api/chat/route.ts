@@ -24,6 +24,7 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
+import { renderUIComponent } from '@/lib/ai/tools/render-ui-component';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment, guestRegex } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
+                  'renderUIComponent',
                 ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
@@ -181,6 +183,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            renderUIComponent: renderUIComponent({ dataStream }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
