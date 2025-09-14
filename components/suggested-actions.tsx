@@ -11,14 +11,28 @@ interface SuggestedActionsProps {
   chatId: string;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   selectedVisibilityType: VisibilityType;
+  messages?: ChatMessage[];
 }
 
 function PureSuggestedActions({
   chatId,
   sendMessage,
   selectedVisibilityType,
+  messages = [],
 }: SuggestedActionsProps) {
-  const suggestedActions = [
+  // Check if this is an onboarding flow (first message asks about Google account)
+  const isOnboarding = messages.length === 1 && 
+    messages[0]?.role === 'assistant' && 
+    messages[0]?.parts?.some(part => 
+      part.type === 'text' && part.text?.includes('connect your Google account')
+    );
+
+  const suggestedActions = isOnboarding ? [
+    'Yes, let\'s do it!',
+    'Sure, sounds good',
+    'Maybe later',
+    'Tell me more first'
+  ] : [
     'What are the advantages of using Next.js?',
     "Write code to demonstrate Dijkstra's algorithm",
     'Help me write an essay about Silicon Valley',

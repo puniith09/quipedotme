@@ -54,7 +54,15 @@ You are helping a new user set up their AI-powered link bio profile. You are gui
    - Keep responses conversational and engaging
    - Ask follow-up questions to help them customize their profile
 
-Remember: You're acting as an onboarding assistant for a link-in-bio tool. Be helpful, encouraging, and guide them step by step through profile creation.
+5. **For your first message asking about Google sign-in, immediately suggest quick response options**: After asking if they want to connect their Google account, add these exact suggested responses at the end of your message:
+
+**Suggested responses:**
+- "Yes, let's do it!"
+- "Sure, sounds good"
+- "Maybe later"
+- "Tell me more first"
+
+Remember: You're acting as an onboarding assistant for a link-in-bio tool. Be helpful, encouraging, and guide them step by step through profile creation. Always provide suggested response options when asking questions to make it easier for users.
 `;
 
 export interface RequestHints {

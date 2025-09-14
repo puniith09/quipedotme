@@ -25,7 +25,7 @@ export default async function Page() {
       parts: [
         {
           type: 'text' as const,
-          text: "👋 Hey there! Welcome to our AI-powered link bio tool! We're excited to help you create an amazing profile. Let's get started!\n\nTo begin, would you like to connect your Google account?"
+          text: "👋 Hey there! Welcome to our AI-powered link bio tool! We're excited to help you create an amazing profile. Let's get started!\n\nTo begin, would you like to connect your Google account?\n\n**Quick responses:**"
         }
       ],
       metadata: {
