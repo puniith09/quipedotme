@@ -2,13 +2,28 @@
 
 import { signIn } from 'next-auth/react';
 import { Button } from './ui/button';
+import { useSearchParams } from 'next/navigation';
 
 export function GoogleSignInButton() {
+  const searchParams = useSearchParams();
+  
+  const handleSignIn = () => {
+    // Get current chat ID from URL to preserve conversation
+    const currentPath = window.location.pathname;
+    const chatId = currentPath.includes('/chat/') ? currentPath.split('/chat/')[1] : null;
+    
+    const callbackUrl = chatId 
+      ? `/?onboarding=true&chatId=${chatId}`
+      : '/?onboarding=true';
+      
+    signIn('google', { callbackUrl });
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/?onboarding=true' })}
+      onClick={handleSignIn}
       className="w-full"
     >
       <svg

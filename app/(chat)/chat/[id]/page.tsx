@@ -8,9 +8,15 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { convertToUIMessages } from '@/lib/utils';
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
+export default async function Page(props: { 
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const { id } = params;
+  const isOnboarding = searchParams.onboarding === 'true';
+  
   const chat = await getChatById({ id });
 
   if (!chat) {
@@ -54,6 +60,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           session={session}
           autoResume={true}
           initialLastContext={chat.lastContext ?? undefined}
+          isOnboarding={isOnboarding}
         />
         <DataStreamHandler />
       </>
@@ -71,6 +78,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         session={session}
         autoResume={true}
         initialLastContext={chat.lastContext ?? undefined}
+        isOnboarding={isOnboarding}
       />
       <DataStreamHandler />
     </>
