@@ -1,6 +1,9 @@
 'use client';
 
 import { GoogleSignInButton } from '@/components/google-signin-button';
+import { Button } from '@heroui/button';
+import { Input } from '@heroui/input';
+import { Card, CardBody } from '@heroui/card';
 
 interface UIComponentRendererProps {
   component: {
@@ -16,33 +19,54 @@ export function UIComponentRenderer({ component }: UIComponentRendererProps) {
   const renderComponent = () => {
     switch (type) {
       case 'google-signin-button':
-        return <GoogleSignInButton {...props} />;
+        return (
+          <Card className="max-w-sm">
+            <CardBody className="p-4 text-center">
+              <GoogleSignInButton {...props} />
+            </CardBody>
+          </Card>
+        );
       case 'username-input':
         return (
-          <div className="p-4 border rounded-lg">
-            <input 
-              type="text" 
-              placeholder="Enter username..." 
-              className="w-full p-2 border rounded"
-              {...props}
-            />
-          </div>
+          <Card className="max-w-sm">
+            <CardBody className="p-4 space-y-3">
+              <Input
+                placeholder="Enter username..."
+                startContent="@"
+                variant="bordered"
+                {...props}
+              />
+              <Button color="primary" size="sm" className="w-full">
+                Continue
+              </Button>
+            </CardBody>
+          </Card>
         );
       case 'profile-form':
         return (
-          <div className="p-4 border rounded-lg">
-            <textarea 
-              placeholder="Tell us about yourself..." 
-              className="w-full p-2 border rounded"
-              {...props}
-            />
-          </div>
+          <Card className="max-w-sm">
+            <CardBody className="p-4 space-y-3">
+              <Input
+                placeholder="Tell us about yourself..."
+                variant="bordered"
+                {...props}
+              />
+              <Button color="primary" size="sm" className="w-full">
+                Save Profile
+              </Button>
+            </CardBody>
+          </Card>
         );
       case 'success-card':
         return (
-          <div className="p-4 bg-green-100 border border-green-300 rounded-lg">
-            <p className="text-green-800">🎉 Profile setup complete!</p>
-          </div>
+          <Card className="max-w-sm">
+            <CardBody className="p-4 text-center bg-green-50">
+              <p className="text-green-800">🎉 Profile setup complete!</p>
+              <Button color="success" size="sm" className="mt-2">
+                View Profile
+              </Button>
+            </CardBody>
+          </Card>
         );
       default:
         return null;
