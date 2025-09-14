@@ -294,6 +294,44 @@ export const initializeNewRelic = () => {
   document.head.appendChild(agentScript);
 };
 
+// Send events to New Relic Events API when fallback is needed
+const sendFallbackEvent = async (eventType: string, attributes: any) => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const browserInfo = getBrowserInfo();
+    const payload = {
+      eventType: `Browser${eventType}`,
+      appName: 'quipedotme',
+      appId: parseInt(process.env.NEXT_PUBLIC_NEWRELIC_APPLICATION_ID || '601584297'),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      fallbackMode: true,
+      ...browserInfo,
+      ...attributes
+    };
+
+    // Send to New Relic Events API using the same approach as our working Node.js script
+    const response = await fetch('https://insights-collector.newrelic.com/v1/accounts/7120052/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Insert-Key': process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY || '60c45774c4a25f32ca29ae52adffd4520289NRAL',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Fallback event sent successfully:', eventType, result);
+    } else {
+      console.warn('⚠️ Fallback event failed:', response.status);
+    }
+  } catch (error) {
+    console.warn('⚠️ Fallback event error:', error);
+  }
+};
+
 // Fallback initialization for when the main agent fails to load
 const initializeFallbackNewRelic = () => {
   console.log('Initializing fallback New Relic monitoring');
@@ -303,10 +341,16 @@ const initializeFallbackNewRelic = () => {
     window.newrelic = {
       addPageAction: (name: string, attributes: any) => {
         console.log('Fallback New Relic - Page Action:', name, attributes);
-        // You could send these to an alternative endpoint or queue them
+        // Send to New Relic Events API via fallback
+        sendFallbackEvent(name, attributes);
       },
       noticeError: (error: Error, attributes?: any) => {
         console.log('Fallback New Relic - Error:', error, attributes);
+        sendFallbackEvent('BrowserError', { 
+          errorMessage: error.message, 
+          errorStack: error.stack,
+          ...attributes 
+        });
       },
       setCustomAttribute: (name: string, value: any) => {
         console.log('Fallback New Relic - Custom Attribute:', name, value);
