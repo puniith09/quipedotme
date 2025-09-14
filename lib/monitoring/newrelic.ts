@@ -175,7 +175,7 @@ export const initializeNewRelic = () => {
   const initScript = document.createElement('script');
   initScript.type = 'text/javascript';
   initScript.innerHTML = `
-    ;window.NREUM||(NREUM={});NREUM.init={distributed_tracing:{enabled:true},privacy:{cookies_enabled:true},ajax:{deny_list:["bam.nr-data.net"]}};
+    ;window.NREUM||(NREUM={});NREUM.init={distributed_tracing:{enabled:true},privacy:{cookies_enabled:true},ajax:{deny_list:[]}};
     NREUM.loader_config={accountID:"${process.env.NEXT_PUBLIC_NEWRELIC_ACCOUNT_ID}",trustKey:"${process.env.NEXT_PUBLIC_NEWRELIC_ACCOUNT_ID}",agentID:"${process.env.NEXT_PUBLIC_NEWRELIC_APPLICATION_ID}",licenseKey:"${process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY}",applicationID:"${process.env.NEXT_PUBLIC_NEWRELIC_APPLICATION_ID}"};
     NREUM.info={beacon:"bam.nr-data.net",errorBeacon:"bam.nr-data.net",licenseKey:"${process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY}",applicationID:"${process.env.NEXT_PUBLIC_NEWRELIC_APPLICATION_ID}",sa:1};
   `;
