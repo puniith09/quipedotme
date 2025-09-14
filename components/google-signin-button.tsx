@@ -8,7 +8,7 @@ export function GoogleSignInButton() {
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/' })}
+      onClick={() => signIn('google', { callbackUrl: '/?onboarding=true' })}
       className="w-full"
     >
       <svg

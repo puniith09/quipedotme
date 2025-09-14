@@ -32,6 +32,7 @@ export function Chat({
   session,
   autoResume,
   initialLastContext,
+  isOnboarding = false,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -41,6 +42,7 @@ export function Chat({
   session: Session;
   autoResume: boolean;
   initialLastContext?: LanguageModelUsage;
+  isOnboarding?: boolean;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -78,6 +80,7 @@ export function Chat({
             message: messages.at(-1),
             selectedChatModel: initialChatModel,
             selectedVisibilityType: visibilityType,
+            isOnboarding,
             ...body,
           },
         };

@@ -20,18 +20,29 @@ function PureSuggestedActions({
   selectedVisibilityType,
   messages = [],
 }: SuggestedActionsProps) {
-  // Check if this is an onboarding flow (first message asks about Google account)
-  const isOnboarding = messages.length === 1 && 
+  // Check if this is an onboarding flow
+  const isGuestOnboarding = messages.length === 1 && 
     messages[0]?.role === 'assistant' && 
     messages[0]?.parts?.some(part => 
       'text' in part && part.text?.includes('connect your Google account')
     );
+    
+  const isPostSignInOnboarding = messages.length === 1 && 
+    messages[0]?.role === 'assistant' && 
+    messages[0]?.parts?.some(part => 
+      'text' in part && part.text?.includes('choosing your username')
+    );
 
-  const suggestedActions = isOnboarding ? [
+  const suggestedActions = isGuestOnboarding ? [
     'Yes, let\'s do it!',
     'Sure, sounds good',
     'Maybe later',
     'Tell me more first'
+  ] : isPostSignInOnboarding ? [
+    'Let\'s pick a username!',
+    'Yes, start with username',
+    'Help me choose one',
+    'What are the rules?'
   ] : [
     'What are the advantages of using Next.js?',
     "Write code to demonstrate Dijkstra's algorithm",
