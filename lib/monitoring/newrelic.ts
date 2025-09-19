@@ -160,15 +160,6 @@ export const initializeNewRelic = () => {
     return;
   }
 
-  // Hardcoded values since this is browser-only code
-  const NEWRELIC_BROWSER_LICENSE_KEY = '60c45774c4a25f32ca29ae52adffd4520289NRAL';
-  const NEWRELIC_APPLICATION_ID = '601584297';
-  const NEWRELIC_ACCOUNT_ID = '7120052';
-
-  if (!NEWRELIC_BROWSER_LICENSE_KEY || !NEWRELIC_APPLICATION_ID) {
-    return;
-  }
-
   // Initialize session and user IDs
   sessionId = generateSessionId();
   userId = generateUserId();
@@ -177,90 +168,37 @@ export const initializeNewRelic = () => {
   const visitCount = parseInt(localStorage.getItem('quipe_visit_count') || '0') + 1;
   localStorage.setItem('quipe_visit_count', visitCount.toString());
 
-  // Try browser agent first, but use fallback if it fails
-  let browserAgentFailed = false;
-  
-  // Browser monitoring initialization script
-  const initScript = document.createElement('script');
-  initScript.type = 'text/javascript';
-  initScript.innerHTML = `
-    ;window.NREUM||(NREUM={});NREUM.init={distributed_tracing:{enabled:true},privacy:{cookies_enabled:true},ajax:{deny_list:[]}};
-    NREUM.loader_config={accountID:"${NEWRELIC_ACCOUNT_ID}",trustKey:"${NEWRELIC_ACCOUNT_ID}",agentID:"${NEWRELIC_APPLICATION_ID}",licenseKey:"${NEWRELIC_BROWSER_LICENSE_KEY}",applicationID:"${NEWRELIC_APPLICATION_ID}"};
-    NREUM.info={beacon:"bam.nr-data.net",errorBeacon:"bam.nr-data.net",licenseKey:"${NEWRELIC_BROWSER_LICENSE_KEY}",applicationID:"${NEWRELIC_APPLICATION_ID}",sa:1};
-  `;
-  document.head.appendChild(initScript);
-
-  // Load the actual New Relic agent
-  const agentScript = document.createElement('script');
-  agentScript.src = 'https://js-agent.newrelic.com/nr-loader-spa-1.293.0.min.js';
-  agentScript.async = true;
-  agentScript.onload = () => {
-    console.log('New Relic agent loaded successfully');
-    // Check immediately and then poll
-    if (!checkNewRelicReady()) {
-      const readinessCheck = setInterval(() => {
-        if (checkNewRelicReady()) {
-          clearInterval(readinessCheck);
-        }
-      }, 100);
-      
-      // Stop checking after 5 seconds, then use fallback
-      setTimeout(() => {
-        clearInterval(readinessCheck);
-        if (!isNewRelicReady) {
-          console.warn('New Relic agent failed to initialize, using Events API fallback');
-          browserAgentFailed = true;
-          initializeEventsFallback();
-        }
-      }, 5000);
+  // Create simple newrelic object using Events API (same as our working Node.js script)
+  window.newrelic = {
+    addPageAction: (name: string, attributes: any) => {
+      sendEventToAPI('BrowserPageAction', name, attributes);
+    },
+    noticeError: (error: Error, attributes?: any) => {
+      sendEventToAPI('BrowserError', 'error', { 
+        errorMessage: error.message, 
+        errorStack: error.stack,
+        ...attributes 
+      });
+    },
+    setCustomAttribute: (name: string, value: any) => {
+      // Store for next event
+      if (!window._nrCustomAttributes) window._nrCustomAttributes = {};
+      window._nrCustomAttributes[name] = value;
     }
   };
   
-  agentScript.onerror = () => {
-    console.warn('Failed to load New Relic agent, using Events API fallback');
-    browserAgentFailed = true;
-    initializeEventsFallback();
-  };
+  isNewRelicReady = true;
+  console.log('✅ New Relic Events API initialized');
   
-  document.head.appendChild(agentScript);
-
-  // Fallback to Events API if browser agent fails
-  function initializeEventsFallback() {
-    console.log('Initializing New Relic Events API fallback');
-    
-    // Create a fallback newrelic object
-    if (!window.newrelic) {
-      window.newrelic = {
-        addPageAction: (name: string, attributes: any) => {
-          sendEventToAPI('BrowserAction', name, attributes);
-        },
-        noticeError: (error: Error, attributes?: any) => {
-          sendEventToAPI('BrowserError', 'error', { 
-            errorMessage: error.message, 
-            errorStack: error.stack,
-            ...attributes 
-          });
-        },
-        setCustomAttribute: (name: string, value: any) => {
-          // Store for next event
-          if (!window._nrCustomAttributes) window._nrCustomAttributes = {};
-          window._nrCustomAttributes[name] = value;
-        }
-      };
-    }
-    
-    isNewRelicReady = true;
-    
-    // Process queued events
-    while (eventQueue.length > 0) {
-      const event = eventQueue.shift();
-      if (event) {
-        sendEventToAPI(event.eventType, event.eventName, event.attributes);
-      }
+  // Process any queued events
+  while (eventQueue.length > 0) {
+    const event = eventQueue.shift();
+    if (event) {
+      window.newrelic.addPageAction(event.eventName, event.attributes);
     }
   }
 
-  // Send events directly to New Relic Events API
+  // Send events directly to New Relic Events API (EXACT same as Node.js script)
   async function sendEventToAPI(eventType: string, eventName: string, attributes: any) {
     try {
       const browserInfo = getBrowserInfo();
@@ -268,10 +206,9 @@ export const initializeNewRelic = () => {
         eventType: eventType,
         actionName: eventName,
         appName: 'quipedotme',
-        appId: parseInt(NEWRELIC_APPLICATION_ID),
+        appId: 601584297,
         url: window.location.href,
         userAgent: navigator.userAgent,
-        fallbackMode: true,
         ...browserInfo,
         ...(window._nrCustomAttributes || {}),
         ...attributes
@@ -281,7 +218,7 @@ export const initializeNewRelic = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Insert-Key': NEWRELIC_BROWSER_LICENSE_KEY,
+          'X-Insert-Key': '60c45774c4a25f32ca29ae52adffd4520289NRAL',
         },
         body: JSON.stringify(payload)
       });
