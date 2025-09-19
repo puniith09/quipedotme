@@ -154,6 +154,42 @@ const checkNewRelicReady = () => {
   return false;
 };
 
+// Send events directly to New Relic Events API (EXACT same as Node.js script)
+async function sendEventToAPI(eventType: string, eventName: string, attributes: any) {
+  try {
+    const browserInfo = getBrowserInfo();
+    const payload = {
+      eventType: eventType,
+      actionName: eventName,
+      appName: 'quipedotme',
+      appId: 601584297,
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      ...browserInfo,
+      ...(window._nrCustomAttributes || {}),
+      ...attributes
+    };
+
+    const response = await fetch('https://insights-collector.newrelic.com/v1/accounts/7120052/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Insert-Key': '60c45774c4a25f32ca29ae52adffd4520289NRAL',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Event sent to New Relic:', eventName, result);
+    } else {
+      console.warn('⚠️ Failed to send event to New Relic:', response.status);
+    }
+  } catch (error) {
+    console.warn('⚠️ Error sending event to New Relic:', error);
+  }
+}
+
 export const initializeNewRelic = () => {
   // Only initialize for web platform
   if (typeof window === 'undefined') {
@@ -195,42 +231,6 @@ export const initializeNewRelic = () => {
     const event = eventQueue.shift();
     if (event) {
       window.newrelic.addPageAction(event.eventName, event.attributes);
-    }
-  }
-
-  // Send events directly to New Relic Events API (EXACT same as Node.js script)
-  async function sendEventToAPI(eventType: string, eventName: string, attributes: any) {
-    try {
-      const browserInfo = getBrowserInfo();
-      const payload = {
-        eventType: eventType,
-        actionName: eventName,
-        appName: 'quipedotme',
-        appId: 601584297,
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        ...browserInfo,
-        ...(window._nrCustomAttributes || {}),
-        ...attributes
-      };
-
-      const response = await fetch('https://insights-collector.newrelic.com/v1/accounts/7120052/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Insert-Key': '60c45774c4a25f32ca29ae52adffd4520289NRAL',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Event sent to New Relic:', eventName, result);
-      } else {
-        console.warn('⚠️ Failed to send event to New Relic:', response.status);
-      }
-    } catch (error) {
-      console.warn('⚠️ Error sending event to New Relic:', error);
     }
   }
 };
