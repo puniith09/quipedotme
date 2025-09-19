@@ -88,22 +88,31 @@ const getUserMetrics = () => {
 async function sendEvent(eventType: string, eventName: string, attributes: any) {
   if (typeof window === 'undefined') return;
   
+  const apiKey = process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY;
+  const accountId = process.env.NEXT_PUBLIC_NEWRELIC_ACCOUNT_ID;
+  const appId = process.env.NEXT_PUBLIC_NEWRELIC_APPLICATION_ID;
+  
+  if (!apiKey || !accountId) {
+    console.warn('New Relic configuration incomplete');
+    return;
+  }
+  
   try {
     const payload = {
       eventType,
       actionName: eventName,
       appName: 'quipedotme',
-      appId: 601584297,
+      appId: appId ? parseInt(appId) : undefined,
       ...getBrowserInfo(),
       ...getUserMetrics(),
       ...attributes
     };
 
-    await fetch('https://insights-collector.newrelic.com/v1/accounts/7120052/events', {
+    await fetch(`https://insights-collector.newrelic.com/v1/accounts/${accountId}/events`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Insert-Key': '60c45774c4a25f32ca29ae52adffd4520289NRAL'
+        'X-Insert-Key': apiKey
       },
       body: JSON.stringify(payload)
     });
