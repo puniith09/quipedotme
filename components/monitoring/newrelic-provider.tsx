@@ -62,12 +62,14 @@ export function NewRelicProvider() {
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
         if (entry.entryType === 'navigation') {
-          NewRelic.recordPerformanceMetric('page_load_time', entry.duration, {
+          NewRelic.recordAppEvent('page_load_time', {
+            metricValue: entry.duration,
             metric_type: 'navigation',
             page_url: window.location.href
           });
         } else if (entry.entryType === 'largest-contentful-paint') {
-          NewRelic.recordPerformanceMetric('largest_contentful_paint', entry.startTime, {
+          NewRelic.recordAppEvent('largest_contentful_paint', {
+            metricValue: entry.startTime,
             metric_type: 'lcp',
             page_url: window.location.href
           });
@@ -75,7 +77,8 @@ export function NewRelicProvider() {
           // First Input Delay tracking with proper type checking
           const fidEntry = entry as any; // PerformanceEventTiming
           if (fidEntry.processingStart) {
-            NewRelic.recordPerformanceMetric('first_input_delay', fidEntry.processingStart - entry.startTime, {
+            NewRelic.recordAppEvent('first_input_delay', {
+              metricValue: fidEntry.processingStart - entry.startTime,
               inputType: fidEntry.name || 'unknown',
               timestamp: entry.startTime
             });
