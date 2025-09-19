@@ -9,7 +9,7 @@ export function NewRelicProvider() {
     initializeNewRelic();
     
     // Record app launch event
-    NewRelic.recordCustomEvent('AppLifecycle', 'app_launched', {
+    NewRelic.recordAppEvent('app_launched', {
       platform: 'web',
       version: '3.1.0',
       environment: process.env.NODE_ENV || 'development',
@@ -19,7 +19,7 @@ export function NewRelicProvider() {
 
     // Track visibility changes
     const handleVisibilityChange = () => {
-      NewRelic.recordCustomEvent('AppLifecycle', 'visibility_changed', {
+      NewRelic.recordAppEvent('visibility_changed', {
         isVisible: document.visibilityState === 'visible',
         visibilityState: document.visibilityState,
         timestamp: Date.now()
@@ -28,7 +28,7 @@ export function NewRelicProvider() {
 
     // Track page unload for session tracking
     const handleBeforeUnload = () => {
-      NewRelic.recordCustomEvent('AppLifecycle', 'app_closing', {
+      NewRelic.recordAppEvent('app_closing', {
         timestamp: Date.now(),
         sessionDuration: Date.now() - parseInt(sessionStorage.getItem('app_start_time') || '0')
       });
@@ -36,14 +36,14 @@ export function NewRelicProvider() {
 
     // Track network status changes
     const handleOnline = () => {
-      NewRelic.recordCustomEvent('NetworkStatus', 'connection_restored', {
+      NewRelic.recordAppEvent('connection_restored', {
         timestamp: Date.now(),
         navigator_online: navigator.onLine
       });
     };
 
     const handleOffline = () => {
-      NewRelic.recordCustomEvent('NetworkStatus', 'connection_lost', {
+      NewRelic.recordAppEvent('connection_lost', {
         timestamp: Date.now(),
         navigator_online: navigator.onLine
       });
