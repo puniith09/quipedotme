@@ -2,6 +2,7 @@ import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import { NewRelicProvider } from '@/components/monitoring/newrelic-provider';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
@@ -114,6 +115,7 @@ export default async function RootLayout({
         <meta name="msapplication-config" content="/browserconfig.xml" />
       </head>
       <body className="antialiased">
+        <NewRelicProvider />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
