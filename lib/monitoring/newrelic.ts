@@ -432,8 +432,12 @@ export const initializeNewRelic = () => {
   const visitCount = parseInt(localStorage.getItem('quipe_visit_count') || '0') + 1;
   localStorage.setItem('quipe_visit_count', visitCount.toString());
 
-  // Request location data for analytics (with user permission)
-  requestLocationData();
+  // Request location data for analytics immediately and wait for it
+  requestLocationData().then(() => {
+    // Refresh browser info cache after location data is available
+    cachedBrowserInfo = null;
+    getBrowserInfo(true); // Force refresh to include location data
+  });
 
   window.newrelic = {
     addPageAction: (name: string, attributes: any) => sendEvent('BrowserPageAction', name, attributes),
