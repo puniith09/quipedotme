@@ -119,12 +119,3 @@ export function NewRelicProvider() {
 
   return null;
 }
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      observer.disconnect();
-    };
-  }, []);
-
-  return null; // This component doesn't render anything
-}
