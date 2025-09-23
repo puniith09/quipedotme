@@ -47,12 +47,15 @@ const getBrowserInfo = () => {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     timezoneOffset: new Date().getTimezoneOffset(),
     locale: nav.language,
-    country: Intl.DateTimeFormat().resolvedOptions().locale?.split('-')[1] || null,
     currency: getCurrencyFromLocale(),
+    // Prioritize browser locale for country detection over IP
+    browserCountry: Intl.DateTimeFormat().resolvedOptions().locale?.split('-')[1] || null,
     // Infer region from timezone
     inferredRegion: getRegionFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone),
-    // Get likely country from timezone
-    inferredCountry: getCountryFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    // Get likely country from timezone (more accurate for Indian users)
+    inferredCountry: getCountryFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone),
+    // Smart country detection: prefer timezone/locale over IP if they indicate India
+    smartCountry: getSmartCountryDetection(nav.language, Intl.DateTimeFormat().resolvedOptions().timeZone, locationData.country)
   };
   
   return {
@@ -274,6 +277,27 @@ const getCountryFromTimezone = (timezone: string) => {
     'Australia/Sydney': 'AU', 'Pacific/Auckland': 'NZ'
   };
   return timezoneCountryMap[timezone] || null;
+};
+
+const getSmartCountryDetection = (language: string, timezone: string, ipCountry: string | null) => {
+  // If timezone indicates India, prefer that over IP location
+  if (timezone === 'Asia/Kolkata' || timezone === 'Asia/Mumbai' || timezone === 'Asia/Delhi') {
+    return 'IN';
+  }
+  
+  // If browser language indicates India, prefer that
+  if (language.includes('IN') || language.startsWith('hi') || language.startsWith('ta') || language.startsWith('te')) {
+    return 'IN';
+  }
+  
+  // If timezone is Asian but IP says US, user might be using VPN - prefer timezone
+  if (timezone.startsWith('Asia/') && ipCountry === 'US') {
+    const timezoneCountry = getCountryFromTimezone(timezone);
+    if (timezoneCountry) return timezoneCountry;
+  }
+  
+  // Fall back to IP country
+  return ipCountry;
 };
 
 async function sendEvent(eventType: string, eventName: string, attributes: any) {
