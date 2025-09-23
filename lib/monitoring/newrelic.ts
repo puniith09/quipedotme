@@ -34,8 +34,21 @@ const generateUserId = () => {
   return stored;
 };
 
-const getBrowserInfo = () => {
+// Cache browser info to avoid sending redundant data with every event
+let cachedBrowserInfo: any = null;
+
+const getBrowserInfo = (forceRefresh = false) => {
   if (typeof window === 'undefined') return { environment: 'server', sessionId, userId };
+  
+  // Return cached browser info unless explicitly requested to refresh
+  if (cachedBrowserInfo && !forceRefresh) {
+    return {
+      ...cachedBrowserInfo,
+      timestamp: Date.now(),
+      dateIST: formatIndianDate(),
+      timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    };
+  }
   
   const nav = navigator;
   const screen = window.screen;
@@ -58,7 +71,7 @@ const getBrowserInfo = () => {
     smartCountry: getSmartCountryDetection(nav.language, Intl.DateTimeFormat().resolvedOptions().timeZone, locationData.country)
   };
   
-  return {
+  cachedBrowserInfo = {
     // Browser Details
     userAgent: nav.userAgent,
     platform: nav.platform,
@@ -84,26 +97,9 @@ const getBrowserInfo = () => {
     viewportHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio || 1,
     
-    // Performance Information
-    memory: (performance as any).memory ? {
-      usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-      totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-      jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
-    } : null,
-    
     // Network Information
-    connection: connection ? {
-      effectiveType: connection.effectiveType,
-      downlink: connection.downlink,
-      rtt: connection.rtt,
-      saveData: connection.saveData
-    } : null,
-    
-    // Network Provider Detection (sync version)
-    networkProvider: getNetworkProvider(),
     connectionType: getConnectionType(connection),
     estimatedISP: getISPFromConnection(connection),
-    cachedNetworkInfo: getCachedNetworkProvider(),
     
     // Page Information
     url: window.location.href,
@@ -114,9 +110,6 @@ const getBrowserInfo = () => {
     // Session Information
     sessionId,
     userId,
-    timestamp: Date.now(),
-    dateIST: formatIndianDate(),
-    timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
     
     // Feature Detection
     hasLocalStorage: typeof(Storage) !== "undefined",
@@ -132,12 +125,12 @@ const getBrowserInfo = () => {
     hasServiceWorker: 'serviceWorker' in navigator,
     isInWebAppiOSCapable: (window.navigator as any).standalone === true,
     
-    // Performance Timing
+    // Performance Timing (calculated once)
     loadTime: performance.timing ? performance.timing.loadEventEnd - performance.timing.navigationStart : null,
     domContentLoadedTime: performance.timing ? performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart : null,
     
     // Derived Metrics
-    deviceCategory: /Mobile|Android|iPhone|iPod|BlackBerry|Opera Mini/i.test(nav.userAgent) ? 'mobile' : 
+    deviceCategory: /Mobile|Android|iPhone|iPad|iPod|BlackBerry|Opera Mini/i.test(nav.userAgent) ? 'mobile' : 
                    /iPad|Android/i.test(nav.userAgent) && !/Mobile/i.test(nav.userAgent) ? 'tablet' : 'desktop',
     screenSize: `${screen.width}x${screen.height}`,
     viewportSize: `${window.innerWidth}x${window.innerHeight}`,
@@ -147,16 +140,28 @@ const getBrowserInfo = () => {
     ...locationData,
     ...inferredLocation
   };
+  
+  return {
+    ...cachedBrowserInfo,
+    timestamp: Date.now(),
+    dateIST: formatIndianDate(),
+    timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+  };
 };
 
-const getUserMetrics = () => {
+const getUserMetrics = (incrementCounters = false) => {
   if (typeof window === 'undefined') return {};
   
   const data = JSON.parse(sessionStorage.getItem('quipe_session_data') || '{}');
   const now = Date.now();
-  data.pageViews = (data.pageViews || 0) + 1;
+  
+  // Only increment counters when explicitly requested (e.g., new page loads)
+  if (incrementCounters) {
+    data.pageViews = (data.pageViews || 0) + 1;
+    data.totalEvents = (data.totalEvents || 0) + 1;
+  }
+  
   data.sessionStart = data.sessionStart || now;
-  data.totalEvents = (data.totalEvents || 0) + 1;
   data.lastActivity = now;
   sessionStorage.setItem('quipe_session_data', JSON.stringify(data));
   
@@ -164,13 +169,13 @@ const getUserMetrics = () => {
   
   return {
     sessionDuration: now - data.sessionStart,
-    pageViews: data.pageViews,
-    totalEvents: data.totalEvents,
+    pageViews: data.pageViews || 1,
+    totalEvents: data.totalEvents || 1,
     isReturningUser: !!localStorage.getItem('quipe_user_id'),
     visitCount: visitCount,
     lastActivity: data.lastActivity,
     sessionAge: now - data.sessionStart,
-    avgTimePerPage: data.pageViews > 0 ? (now - data.sessionStart) / data.pageViews : 0
+    avgTimePerPage: (data.pageViews || 1) > 0 ? (now - data.sessionStart) / (data.pageViews || 1) : 0
   };
 };
 
@@ -349,24 +354,6 @@ const getPWADisplayMode = () => {
   return 'browser';
 };
 
-const getNetworkProvider = () => {
-  if (typeof window === 'undefined') return null;
-  
-  // Try to get carrier info from mobile network API (limited support)
-  const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
-  
-  if (connection) {
-    // Some Android devices expose carrier info
-    if ((connection as any).carrier) {
-      return (connection as any).carrier;
-    }
-  }
-  
-  // Fallback: Use IP-based provider detection via API
-  getNetworkProviderAsync();
-  return null;
-};
-
 const getConnectionType = (connection: any) => {
   if (!connection) return 'unknown';
   
@@ -398,46 +385,7 @@ const getISPFromConnection = (connection: any) => {
   return 'unknown';
 };
 
-const getNetworkProviderAsync = async () => {
-  // Asynchronously fetch network provider info and cache it
-  try {
-    const cached = sessionStorage.getItem('quipe_network_provider');
-    if (cached) return;
-    
-    // Try to get ISP info from our location API (which includes network data)
-    const response = await fetch('/api/location');
-    if (response.ok) {
-      const data = await response.json();
-      if (data.isp || data.org) {
-        const providerInfo = {
-          isp: data.isp || data.org,
-          asn: data.as,
-          timestamp: Date.now()
-        };
-        sessionStorage.setItem('quipe_network_provider', JSON.stringify(providerInfo));
-      }
-    }
-  } catch (error) {
-    // Silent error handling for network provider detection
-  }
-};
-
-const getCachedNetworkProvider = () => {
-  if (typeof window === 'undefined') return null;
-  
-  try {
-    const cached = sessionStorage.getItem('quipe_network_provider');
-    if (cached) {
-      return JSON.parse(cached);
-    }
-  } catch (e) {
-    // Silent error handling
-  }
-  
-  return null;
-};
-
-async function sendEvent(eventType: string, eventName: string, attributes: any) {
+async function sendEvent(eventType: string, eventName: string, attributes: any, incrementCounters = false) {
   if (typeof window === 'undefined') return;
   
   const apiKey = process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY;
@@ -458,7 +406,7 @@ async function sendEvent(eventType: string, eventName: string, attributes: any) 
       eventDateIST: formatIndianDate(),
       eventTimeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
       ...getBrowserInfo(),
-      ...getUserMetrics(),
+      ...getUserMetrics(incrementCounters),
       ...attributes
     };
 
@@ -502,8 +450,8 @@ export const initializeNewRelic = () => {
 };
 
 export const NewRelic = {
-  recordAppEvent: (eventName: string, attributes: any = {}) => 
-    sendEvent('AppLifecycle', eventName, attributes),
+  recordAppEvent: (eventName: string, attributes: any = {}, incrementCounters = false) => 
+    sendEvent('AppLifecycle', eventName, attributes, incrementCounters),
   
   recordBrowserEvent: (eventName: string, attributes: any = {}) => 
     sendEvent('BrowserPageAction', eventName, attributes),
