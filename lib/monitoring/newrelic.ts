@@ -99,6 +99,12 @@ const getBrowserInfo = () => {
       saveData: connection.saveData
     } : null,
     
+    // Network Provider Detection (sync version)
+    networkProvider: getNetworkProvider(),
+    connectionType: getConnectionType(connection),
+    estimatedISP: getISPFromConnection(connection),
+    cachedNetworkInfo: getCachedNetworkProvider(),
+    
     // Page Information
     url: window.location.href,
     hostname: window.location.hostname,
@@ -118,6 +124,13 @@ const getBrowserInfo = () => {
     hasWebGL: !!window.WebGLRenderingContext,
     hasTouchScreen: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
     hasGeolocation: !!navigator.geolocation,
+    
+    // PWA Detection
+    isPWAInstalled: getPWAInstallationStatus(),
+    displayMode: getPWADisplayMode(),
+    isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+    hasServiceWorker: 'serviceWorker' in navigator,
+    isInWebAppiOSCapable: (window.navigator as any).standalone === true,
     
     // Performance Timing
     loadTime: performance.timing ? performance.timing.loadEventEnd - performance.timing.navigationStart : null,
@@ -298,6 +311,130 @@ const getSmartCountryDetection = (language: string, timezone: string, ipCountry:
   
   // Fall back to IP country
   return ipCountry;
+};
+
+const getPWAInstallationStatus = () => {
+  if (typeof window === 'undefined') return false;
+  
+  // Check if running in standalone mode (installed PWA)
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    return true;
+  }
+  
+  // Check iOS Safari standalone mode
+  if ((window.navigator as any).standalone === true) {
+    return true;
+  }
+  
+  // Check if launched from home screen (Android)
+  if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+    return true;
+  }
+  
+  return false;
+};
+
+const getPWADisplayMode = () => {
+  if (typeof window === 'undefined') return 'browser';
+  
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    return 'standalone';
+  }
+  if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+    return 'minimal-ui';
+  }
+  if (window.matchMedia('(display-mode: fullscreen)').matches) {
+    return 'fullscreen';
+  }
+  return 'browser';
+};
+
+const getNetworkProvider = () => {
+  if (typeof window === 'undefined') return null;
+  
+  // Try to get carrier info from mobile network API (limited support)
+  const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+  
+  if (connection) {
+    // Some Android devices expose carrier info
+    if ((connection as any).carrier) {
+      return (connection as any).carrier;
+    }
+  }
+  
+  // Fallback: Use IP-based provider detection via API
+  getNetworkProviderAsync();
+  return null;
+};
+
+const getConnectionType = (connection: any) => {
+  if (!connection) return 'unknown';
+  
+  if (connection.effectiveType) {
+    return connection.effectiveType; // '4g', '3g', '2g', 'slow-2g'
+  }
+  
+  if (connection.type) {
+    return connection.type; // 'wifi', 'cellular', 'bluetooth', 'ethernet'
+  }
+  
+  return 'unknown';
+};
+
+const getISPFromConnection = (connection: any) => {
+  if (!connection) return null;
+  
+  // Estimate ISP type based on connection characteristics
+  if (connection.effectiveType === '4g' && connection.downlink > 10) {
+    return 'fiber_or_5g';
+  } else if (connection.effectiveType === '4g') {
+    return 'broadband_4g';
+  } else if (connection.effectiveType === '3g') {
+    return 'mobile_3g';
+  } else if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
+    return 'mobile_2g';
+  }
+  
+  return 'unknown';
+};
+
+const getNetworkProviderAsync = async () => {
+  // Asynchronously fetch network provider info and cache it
+  try {
+    const cached = sessionStorage.getItem('quipe_network_provider');
+    if (cached) return;
+    
+    // Try to get ISP info from our location API (which includes network data)
+    const response = await fetch('/api/location');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.isp || data.org) {
+        const providerInfo = {
+          isp: data.isp || data.org,
+          asn: data.as,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('quipe_network_provider', JSON.stringify(providerInfo));
+      }
+    }
+  } catch (error) {
+    // Silent error handling for network provider detection
+  }
+};
+
+const getCachedNetworkProvider = () => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = sessionStorage.getItem('quipe_network_provider');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    // Silent error handling
+  }
+  
+  return null;
 };
 
 async function sendEvent(eventType: string, eventName: string, attributes: any) {
