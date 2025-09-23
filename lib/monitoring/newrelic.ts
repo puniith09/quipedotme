@@ -34,8 +34,21 @@ const generateUserId = () => {
   return stored;
 };
 
-const getBrowserInfo = () => {
+// Cache browser info to avoid sending redundant data with every event
+let cachedBrowserInfo: any = null;
+
+const getBrowserInfo = (forceRefresh = false) => {
   if (typeof window === 'undefined') return { environment: 'server', sessionId, userId };
+  
+  // Return cached browser info unless explicitly requested to refresh
+  if (cachedBrowserInfo && !forceRefresh) {
+    return {
+      ...cachedBrowserInfo,
+      timestamp: Date.now(),
+      dateIST: formatIndianDate(),
+      timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    };
+  }
   
   const nav = navigator;
   const screen = window.screen;
@@ -58,7 +71,7 @@ const getBrowserInfo = () => {
     smartCountry: getSmartCountryDetection(nav.language, Intl.DateTimeFormat().resolvedOptions().timeZone, locationData.country)
   };
   
-  return {
+  cachedBrowserInfo = {
     // Browser Details
     userAgent: nav.userAgent,
     platform: nav.platform,
@@ -84,20 +97,9 @@ const getBrowserInfo = () => {
     viewportHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio || 1,
     
-    // Performance Information
-    memory: (performance as any).memory ? {
-      usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-      totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-      jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
-    } : null,
-    
     // Network Information
-    connection: connection ? {
-      effectiveType: connection.effectiveType,
-      downlink: connection.downlink,
-      rtt: connection.rtt,
-      saveData: connection.saveData
-    } : null,
+    connectionType: getConnectionType(connection),
+    estimatedISP: getISPFromConnection(connection),
     
     // Page Information
     url: window.location.href,
@@ -108,9 +110,6 @@ const getBrowserInfo = () => {
     // Session Information
     sessionId,
     userId,
-    timestamp: Date.now(),
-    dateIST: formatIndianDate(),
-    timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
     
     // Feature Detection
     hasLocalStorage: typeof(Storage) !== "undefined",
@@ -119,12 +118,19 @@ const getBrowserInfo = () => {
     hasTouchScreen: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
     hasGeolocation: !!navigator.geolocation,
     
-    // Performance Timing
+    // PWA Detection
+    isPWAInstalled: getPWAInstallationStatus(),
+    displayMode: getPWADisplayMode(),
+    isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+    hasServiceWorker: 'serviceWorker' in navigator,
+    isInWebAppiOSCapable: (window.navigator as any).standalone === true,
+    
+    // Performance Timing (calculated once)
     loadTime: performance.timing ? performance.timing.loadEventEnd - performance.timing.navigationStart : null,
     domContentLoadedTime: performance.timing ? performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart : null,
     
     // Derived Metrics
-    deviceCategory: /Mobile|Android|iPhone|iPod|BlackBerry|Opera Mini/i.test(nav.userAgent) ? 'mobile' : 
+    deviceCategory: /Mobile|Android|iPhone|iPad|iPod|BlackBerry|Opera Mini/i.test(nav.userAgent) ? 'mobile' : 
                    /iPad|Android/i.test(nav.userAgent) && !/Mobile/i.test(nav.userAgent) ? 'tablet' : 'desktop',
     screenSize: `${screen.width}x${screen.height}`,
     viewportSize: `${window.innerWidth}x${window.innerHeight}`,
@@ -134,16 +140,28 @@ const getBrowserInfo = () => {
     ...locationData,
     ...inferredLocation
   };
+  
+  return {
+    ...cachedBrowserInfo,
+    timestamp: Date.now(),
+    dateIST: formatIndianDate(),
+    timeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+  };
 };
 
-const getUserMetrics = () => {
+const getUserMetrics = (incrementCounters = false) => {
   if (typeof window === 'undefined') return {};
   
   const data = JSON.parse(sessionStorage.getItem('quipe_session_data') || '{}');
   const now = Date.now();
-  data.pageViews = (data.pageViews || 0) + 1;
+  
+  // Only increment counters when explicitly requested (e.g., new page loads)
+  if (incrementCounters) {
+    data.pageViews = (data.pageViews || 0) + 1;
+    data.totalEvents = (data.totalEvents || 0) + 1;
+  }
+  
   data.sessionStart = data.sessionStart || now;
-  data.totalEvents = (data.totalEvents || 0) + 1;
   data.lastActivity = now;
   sessionStorage.setItem('quipe_session_data', JSON.stringify(data));
   
@@ -151,13 +169,13 @@ const getUserMetrics = () => {
   
   return {
     sessionDuration: now - data.sessionStart,
-    pageViews: data.pageViews,
-    totalEvents: data.totalEvents,
+    pageViews: data.pageViews || 1,
+    totalEvents: data.totalEvents || 1,
     isReturningUser: !!localStorage.getItem('quipe_user_id'),
     visitCount: visitCount,
     lastActivity: data.lastActivity,
     sessionAge: now - data.sessionStart,
-    avgTimePerPage: data.pageViews > 0 ? (now - data.sessionStart) / data.pageViews : 0
+    avgTimePerPage: (data.pageViews || 1) > 0 ? (now - data.sessionStart) / (data.pageViews || 1) : 0
   };
 };
 
@@ -300,7 +318,74 @@ const getSmartCountryDetection = (language: string, timezone: string, ipCountry:
   return ipCountry;
 };
 
-async function sendEvent(eventType: string, eventName: string, attributes: any) {
+const getPWAInstallationStatus = () => {
+  if (typeof window === 'undefined') return false;
+  
+  // Check if running in standalone mode (installed PWA)
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    return true;
+  }
+  
+  // Check iOS Safari standalone mode
+  if ((window.navigator as any).standalone === true) {
+    return true;
+  }
+  
+  // Check if launched from home screen (Android)
+  if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+    return true;
+  }
+  
+  return false;
+};
+
+const getPWADisplayMode = () => {
+  if (typeof window === 'undefined') return 'browser';
+  
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    return 'standalone';
+  }
+  if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+    return 'minimal-ui';
+  }
+  if (window.matchMedia('(display-mode: fullscreen)').matches) {
+    return 'fullscreen';
+  }
+  return 'browser';
+};
+
+const getConnectionType = (connection: any) => {
+  if (!connection) return 'unknown';
+  
+  if (connection.effectiveType) {
+    return connection.effectiveType; // '4g', '3g', '2g', 'slow-2g'
+  }
+  
+  if (connection.type) {
+    return connection.type; // 'wifi', 'cellular', 'bluetooth', 'ethernet'
+  }
+  
+  return 'unknown';
+};
+
+const getISPFromConnection = (connection: any) => {
+  if (!connection) return null;
+  
+  // Estimate ISP type based on connection characteristics
+  if (connection.effectiveType === '4g' && connection.downlink > 10) {
+    return 'fiber_or_5g';
+  } else if (connection.effectiveType === '4g') {
+    return 'broadband_4g';
+  } else if (connection.effectiveType === '3g') {
+    return 'mobile_3g';
+  } else if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
+    return 'mobile_2g';
+  }
+  
+  return 'unknown';
+};
+
+async function sendEvent(eventType: string, eventName: string, attributes: any, incrementCounters = false) {
   if (typeof window === 'undefined') return;
   
   const apiKey = process.env.NEXT_PUBLIC_NEWRELIC_BROWSER_LICENSE_KEY;
@@ -321,7 +406,7 @@ async function sendEvent(eventType: string, eventName: string, attributes: any) 
       eventDateIST: formatIndianDate(),
       eventTimeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
       ...getBrowserInfo(),
-      ...getUserMetrics(),
+      ...getUserMetrics(incrementCounters),
       ...attributes
     };
 
@@ -347,8 +432,12 @@ export const initializeNewRelic = () => {
   const visitCount = parseInt(localStorage.getItem('quipe_visit_count') || '0') + 1;
   localStorage.setItem('quipe_visit_count', visitCount.toString());
 
-  // Request location data for analytics (with user permission)
-  requestLocationData();
+  // Request location data for analytics immediately and wait for it
+  requestLocationData().then(() => {
+    // Refresh browser info cache after location data is available
+    cachedBrowserInfo = null;
+    getBrowserInfo(true); // Force refresh to include location data
+  });
 
   window.newrelic = {
     addPageAction: (name: string, attributes: any) => sendEvent('BrowserPageAction', name, attributes),
@@ -365,8 +454,8 @@ export const initializeNewRelic = () => {
 };
 
 export const NewRelic = {
-  recordAppEvent: (eventName: string, attributes: any = {}) => 
-    sendEvent('AppLifecycle', eventName, attributes),
+  recordAppEvent: (eventName: string, attributes: any = {}, incrementCounters = false) => 
+    sendEvent('AppLifecycle', eventName, attributes, incrementCounters),
   
   recordBrowserEvent: (eventName: string, attributes: any = {}) => 
     sendEvent('BrowserPageAction', eventName, attributes),

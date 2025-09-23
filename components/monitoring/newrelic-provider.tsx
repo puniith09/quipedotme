@@ -3,19 +3,22 @@
 import { useEffect } from 'react';
 import { initializeNewRelic, NewRelic } from '@/lib/monitoring/newrelic';
 
+// Track processed performance entries to avoid duplicates
+const processedEntries = new Set<string>();
+
 export function NewRelicProvider() {
   useEffect(() => {
     // Initialize New Relic monitoring
     initializeNewRelic();
     
-    // Record app launch event
+    // Record app launch event (increment counters for first event)
     NewRelic.recordAppEvent('app_launched', {
       platform: 'web',
       version: '3.1.0',
       environment: process.env.NODE_ENV || 'development',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
       timestamp: Date.now()
-    });
+    }, true); // Increment counters for app launch
 
     // Track visibility changes
     const handleVisibilityChange = () => {
@@ -58,15 +61,24 @@ export function NewRelicProvider() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Performance monitoring
+    // Performance monitoring with deduplication
     const observer = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
+        // Create unique key for each performance entry
+        const entryKey = `${entry.entryType}-${entry.name}-${Math.round(entry.startTime)}`;
+        
+        // Skip if already processed
+        if (processedEntries.has(entryKey)) {
+          return;
+        }
+        processedEntries.add(entryKey);
+        
         if (entry.entryType === 'navigation') {
           NewRelic.recordAppEvent('page_load_time', {
             metricValue: entry.duration,
             metric_type: 'navigation',
             page_url: window.location.href
-          });
+          }, true); // Increment counters for page load
         } else if (entry.entryType === 'largest-contentful-paint') {
           NewRelic.recordAppEvent('largest_contentful_paint', {
             metricValue: entry.startTime,
@@ -105,5 +117,5 @@ export function NewRelicProvider() {
     };
   }, []);
 
-  return null; // This component doesn't render anything
+  return null;
 }
