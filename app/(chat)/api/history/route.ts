@@ -17,18 +17,42 @@ export async function GET(request: NextRequest) {
     ).toResponse();
   }
 
-  const session = await auth();
-
-  if (!session?.user) {
-    return new ChatSDKError('unauthorized:chat').toResponse();
+  let session;
+  try {
+    session = await auth();
+  } catch (error) {
+    console.error('Authentication error in history API:', error);
+    return new ChatSDKError(
+      'unauthorized:history',
+      'Authentication service unavailable'
+    ).toResponse();
   }
 
-  const chats = await getChatsByUserId({
-    id: session.user.id,
-    limit,
-    startingAfter,
-    endingBefore,
-  });
+  if (!session?.user) {
+    return new ChatSDKError('unauthorized:history').toResponse();
+  }
 
-  return Response.json(chats);
+  try {
+    const chats = await getChatsByUserId({
+      id: session.user.id,
+      limit,
+      startingAfter,
+      endingBefore,
+    });
+
+    return Response.json(chats);
+  } catch (error) {
+    console.error('Database error in history API:', error);
+    
+    // The error will be a ChatSDKError from getChatsByUserId
+    if (error instanceof ChatSDKError) {
+      return error.toResponse();
+    }
+    
+    // Fallback for unexpected errors
+    return new ChatSDKError(
+      'bad_request:history',
+      'Failed to retrieve chat history'
+    ).toResponse();
+  }
 }

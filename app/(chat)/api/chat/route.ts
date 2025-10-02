@@ -72,8 +72,25 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
-    return new ChatSDKError('bad_request:api').toResponse();
+  } catch (error) {
+    console.error('Request body validation error:', error);
+    
+    // If it's a Zod validation error, provide more specific feedback
+    if (error && typeof error === 'object' && 'issues' in error) {
+      const issues = (error as any).issues;
+      const firstIssue = issues[0];
+      if (firstIssue) {
+        return new ChatSDKError(
+          'bad_request:api',
+          `Invalid request: ${firstIssue.path.join('.')} - ${firstIssue.message}`
+        ).toResponse();
+      }
+    }
+    
+    return new ChatSDKError(
+      'bad_request:api',
+      'Invalid request body format'
+    ).toResponse();
   }
 
   try {
@@ -89,7 +106,16 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
-    const session = await auth();
+    let session;
+    try {
+      session = await auth();
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return new ChatSDKError(
+        'unauthorized:chat',
+        'Authentication service unavailable'
+      ).toResponse();
+    }
 
     if (!session?.user) {
       return new ChatSDKError('unauthorized:chat').toResponse();

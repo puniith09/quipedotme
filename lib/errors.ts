@@ -98,6 +98,18 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
     case 'offline:chat':
       return "We're having trouble sending your message. Please check your internet connection and try again.";
 
+    case 'bad_request:history':
+      return 'Failed to retrieve chat history. Please try again later.';
+    case 'unauthorized:history':
+      return 'You need to sign in to view your chat history. Please sign in and try again.';
+    case 'offline:history':
+      return "We're having trouble loading your chat history. Please check your internet connection and try again.";
+
+    case 'offline:database':
+      return 'Database service is temporarily unavailable. Please try again later.';
+    case 'unauthorized:database':
+      return 'Database authentication failed. Please contact support.';
+
     case 'not_found:document':
       return 'The requested document was not found. Please check the document ID and try again.';
     case 'forbidden:document':

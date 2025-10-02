@@ -39,9 +39,19 @@ import type { LanguageModelV2Usage } from '@ai-sdk/provider';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+// Check if POSTGRES_URL is available
+if (!process.env.POSTGRES_URL) {
+  throw new Error('POSTGRES_URL environment variable is not set');
+}
+
+const client = postgres(process.env.POSTGRES_URL, {
+  max: 1,
+  // Add connection timeout and retry logic for production
+  connect_timeout: 10,
+  idle_timeout: 20,
+  max_lifetime: 60 * 30, // 30 minutes
+});
+export const db = drizzle(client);
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -241,9 +251,35 @@ export async function getChatsByUserId({
       hasMore,
     };
   } catch (error) {
+    console.error('Database error in getChatsByUserId:', error);
+    
+    // Check if it's a connection error
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
+    // Check if it's an authentication error
+    if (error instanceof Error && (
+      error.message.includes('authentication') ||
+      error.message.includes('permission')
+    )) {
+      throw new ChatSDKError(
+        'unauthorized:database',
+        'Database authentication failed',
+      );
+    }
+    
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get chats by user id',
+      `Failed to get chats by user id: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
@@ -568,9 +604,24 @@ export async function getMessageCountByUserId({
 
     return stats?.count ?? 0;
   } catch (error) {
+    console.error('Database error in getMessageCountByUserId:', error);
+    
+    // Check if it's a connection error
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get message count by user id',
+      `Failed to get message count by user id: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
