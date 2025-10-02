@@ -39,6 +39,7 @@ export default async function PublicProfilePage({
         autoResume={false}
         profileOwner={profileOwner}
         isPublicProfile={true}
+        targetUsername={username}
       />
     </>
   );

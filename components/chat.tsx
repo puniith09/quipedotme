@@ -34,6 +34,7 @@ export function Chat({
   initialLastContext,
   profileOwner,
   isPublicProfile = false,
+  targetUsername,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -45,6 +46,7 @@ export function Chat({
   initialLastContext?: LanguageModelUsage;
   profileOwner?: { id: string; email: string; username: string | null };
   isPublicProfile?: boolean;
+  targetUsername?: string;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,

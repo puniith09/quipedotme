@@ -32,6 +32,10 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
+  chatType: varchar('chatType', { enum: ['profile_management', 'username_chat'] })
+    .notNull()
+    .default('profile_management'),
+  targetUsername: varchar('targetUsername', { length: 32 }), // For username chats, stores which username they're chatting with
   lastContext: jsonb('lastContext').$type<LanguageModelV2Usage | null>(),
 });
 
