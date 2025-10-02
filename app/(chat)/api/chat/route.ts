@@ -8,7 +8,7 @@ import {
   streamText,
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
+import { type RequestHints, systemPrompt, profileManagementPrompt } from '@/lib/ai/prompts';
 import {
   createStreamId,
   deleteChatById,
@@ -26,6 +26,7 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { getSupermemoryTools } from '@/lib/ai/tools/supermemory';
+import { getProfileManagementTools } from '@/lib/ai/tools/profile-management';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -156,22 +157,24 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
-        const supermemoryTools = getSupermemoryTools(session);
-        const hasSupermemoryTools = supermemoryTools !== null;
+        const profileManagementTools = getProfileManagementTools(session);
+        const hasProfileTools = profileManagementTools !== null;
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: hasProfileTools 
+            ? `${profileManagementPrompt}\n\n${systemPrompt({ selectedChatModel, requestHints })}`
+            : systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
-              : hasSupermemoryTools
-                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'addMemory', 'searchMemories'] as any)
+              : hasProfileTools
+                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'updateProfileInfo', 'searchMyProfile', 'addMemory', 'searchMemories'] as any)
                 : ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions'],
           experimental_transform: smoothStream({ chunking: 'word' }),
-          tools: hasSupermemoryTools
+          tools: hasProfileTools
             ? {
                 getWeather,
                 createDocument: createDocument({ session, dataStream }),
@@ -180,7 +183,7 @@ export async function POST(request: Request) {
                   session,
                   dataStream,
                 }),
-                ...supermemoryTools!,
+                ...profileManagementTools!,
               }
             : {
                 getWeather,

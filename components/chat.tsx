@@ -32,15 +32,19 @@ export function Chat({
   session,
   autoResume,
   initialLastContext,
+  profileOwner,
+  isPublicProfile = false,
 }: {
   id: string;
   initialMessages: ChatMessage[];
   initialChatModel: string;
   initialVisibilityType: VisibilityType;
   isReadonly: boolean;
-  session: Session;
+  session: Session | null;
   autoResume: boolean;
   initialLastContext?: LanguageModelUsage;
+  profileOwner?: { id: string; email: string; username: string | null };
+  isPublicProfile?: boolean;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -69,9 +73,22 @@ export function Chat({
     experimental_throttle: 100,
     generateId: generateUUID,
     transport: new DefaultChatTransport({
-      api: '/api/chat',
+      api: isPublicProfile ? '/api/profile-chat' : '/api/chat',
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest({ messages, id, body }) {
+        if (isPublicProfile && profileOwner) {
+          return {
+            body: {
+              messages,
+              profileOwnerId: profileOwner.id,
+              profileOwnerUsername: profileOwner.username || 'User',
+              profileOwnerEmail: profileOwner.email,
+              selectedChatModel: initialChatModel,
+              ...body,
+            },
+          };
+        }
+        
         return {
           body: {
             id,
