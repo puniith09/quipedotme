@@ -17,6 +17,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow public access to username profile pages (e.g., /[username])
+  // These are public profile pages that don't require authentication
+  const isUsernameRoute = pathname.match(/^\/[a-zA-Z0-9_-]+$/) && 
+                         !['/', '/login', '/register', '/chat', '/offline'].includes(pathname);
+  
+  if (isUsernameRoute) {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
