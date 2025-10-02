@@ -6,7 +6,17 @@ import { ChatSDKError } from '@/lib/errors';
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
 
-  const limit = Number.parseInt(searchParams.get('limit') || '10');
+  const limitParam = searchParams.get('limit') || '10';
+  const limit = Number.parseInt(limitParam);
+  
+  // Validate limit parameter
+  if (isNaN(limit) || limit < 1 || limit > 100) {
+    return new ChatSDKError(
+      'bad_request:api',
+      'Limit must be a number between 1 and 100.',
+    ).toResponse();
+  }
+  
   const startingAfter = searchParams.get('starting_after');
   const endingBefore = searchParams.get('ending_before');
 

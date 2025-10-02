@@ -97,15 +97,20 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id } = useParams();
 
+  // Only make API calls if user is authenticated
   const {
     data: paginatedChatHistories,
     setSize,
     isValidating,
     isLoading,
     mutate,
-  } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
-    fallbackData: [],
-  });
+  } = useSWRInfinite<ChatHistory>(
+    user ? getChatHistoryPaginationKey : () => null,
+    fetcher,
+    {
+      fallbackData: [],
+    }
+  );
 
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);

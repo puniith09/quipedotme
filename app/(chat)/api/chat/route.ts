@@ -69,11 +69,22 @@ export function getStreamContext() {
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
 
+  let json: any;
   try {
-    const json = await request.json();
+    json = await request.json();
+  } catch (error) {
+    console.error('Failed to parse JSON from request body:', error);
+    return new ChatSDKError(
+      'bad_request:api',
+      'Request body must be valid JSON'
+    ).toResponse();
+  }
+
+  try {
     requestBody = postRequestBodySchema.parse(json);
   } catch (error) {
     console.error('Request body validation error:', error);
+    console.error('Received request body:', JSON.stringify(json, null, 2));
     
     // If it's a Zod validation error, provide more specific feedback
     if (error && typeof error === 'object' && 'issues' in error) {
