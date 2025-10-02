@@ -207,7 +207,6 @@ const requestLocationData = async () => {
         locationTimeIST: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })
       };
       sessionStorage.setItem('quipe_location_data', JSON.stringify(locationData));
-      console.log('📍 IP-based location collected:', ipLocation);
       return;
     }
   } catch (error) {
