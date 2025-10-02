@@ -81,6 +81,7 @@ export function Chat({
         if (isPublicProfile && profileOwner) {
           return {
             body: {
+              chatId: id,
               messages,
               profileOwnerId: profileOwner.id,
               profileOwnerUsername: profileOwner.username || 'User',

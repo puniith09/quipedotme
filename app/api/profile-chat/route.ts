@@ -9,12 +9,15 @@ import { profileRepresentativePrompt } from '@/lib/ai/prompts';
 import { generateUUID } from '@/lib/utils';
 import { getProfileRepresentativeTools } from '@/lib/ai/tools/profile-representative';
 import { myProvider } from '@/lib/ai/providers';
-import { createStreamId } from '@/lib/db/queries';
+import { createStreamId, saveChat, saveMessages, getChatById } from '@/lib/db/queries';
+import { generateTitleFromUserMessage } from '@/app/(chat)/actions';
+import { auth } from '@/app/(auth)/auth';
 import { z } from 'zod';
 
 export const maxDuration = 60;
 
 const requestSchema = z.object({
+  chatId: z.string().uuid(),
   messages: z.array(z.any()),
   profileOwnerId: z.string(),
   profileOwnerUsername: z.string(),
@@ -25,7 +28,49 @@ const requestSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { messages, profileOwnerId, profileOwnerUsername, profileOwnerEmail, selectedChatModel } = requestSchema.parse(body);
+    const { chatId, messages, profileOwnerId, profileOwnerUsername, profileOwnerEmail, selectedChatModel } = requestSchema.parse(body);
+
+    // Check authentication for visitor
+    const session = await auth();
+    if (!session?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if chat exists, if not create it
+    const existingChat = await getChatById({ id: chatId });
+    if (!existingChat) {
+      const lastMessage = messages[messages.length - 1];
+      const title = await generateTitleFromUserMessage({
+        message: lastMessage,
+      });
+
+      await saveChat({
+        id: chatId,
+        userId: session.user.id,
+        title,
+        visibility: 'private',
+        chatType: 'username_chat',
+        targetUsername: profileOwnerUsername,
+      });
+    }
+
+    // Save the user message
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage) {
+      await saveMessages({
+        messages: [{
+          chatId,
+          id: lastMessage.id,
+          role: 'user',
+          parts: lastMessage.parts || [{ type: 'text', text: lastMessage.content }],
+          attachments: [],
+          createdAt: new Date(),
+        }],
+      });
+    }
 
     // Get tools for profile representative
     const profileTools = getProfileRepresentativeTools(profileOwnerId);
@@ -46,8 +91,20 @@ export async function POST(request: Request) {
             : [],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: profileTools || {},
-          onFinish: ({ usage }) => {
+          onFinish: async ({ usage, text }) => {
             dataStream.write({ type: 'data-usage', data: usage });
+            
+            // Save the AI response
+            await saveMessages({
+              messages: [{
+                chatId,
+                id: generateUUID(),
+                role: 'assistant',
+                parts: [{ type: 'text', text }],
+                attachments: [],
+                createdAt: new Date(),
+              }],
+            });
           },
         });
 

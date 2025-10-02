@@ -128,11 +128,15 @@ export async function saveChat({
   userId,
   title,
   visibility,
+  chatType = 'profile_management',
+  targetUsername = null,
 }: {
   id: string;
   userId: string;
   title: string;
   visibility: VisibilityType;
+  chatType?: 'profile_management' | 'username_chat';
+  targetUsername?: string | null;
 }) {
   try {
     return await db.insert(chat).values({
@@ -141,6 +145,8 @@ export async function saveChat({
       userId,
       title,
       visibility,
+      chatType,
+      targetUsername,
     });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to save chat');

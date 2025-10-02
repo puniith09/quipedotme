@@ -118,6 +118,8 @@ export async function POST(request: Request) {
         userId: session.user.id,
         title,
         visibility: selectedVisibilityType,
+        chatType: 'profile_management',
+        targetUsername: null,
       });
     } else {
       if (chat.userId !== session.user.id) {
