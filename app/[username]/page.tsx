@@ -6,15 +6,15 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { getUserByUsername } from '@/lib/db/queries';
 
 interface PublicProfilePageProps {
-  params: {
+  params: Promise<{
     username: string;
-  };
+  }>;
 }
 
 export default async function PublicProfilePage({
   params,
 }: PublicProfilePageProps) {
-  const { username } = params;
+  const { username } = await params;
   
   // Get the profile owner by username
   const profileOwner = await getUserByUsername(username);
@@ -47,7 +47,7 @@ export default async function PublicProfilePage({
 export async function generateMetadata({
   params,
 }: PublicProfilePageProps) {
-  const { username } = params;
+  const { username } = await params;
   const profileOwner = await getUserByUsername(username);
   
   if (!profileOwner) {
