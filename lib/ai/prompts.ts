@@ -33,7 +33,7 @@ Do not update document right after creating it. Wait for user feedback or reques
 `;
 
 export const regularPrompt =
-  'You are a friendly assistant with long-term memory capabilities! I can remember our past conversations and learn about your preferences. Keep your responses concise and helpful. When relevant information from our previous conversations would be useful, I can search my memories to provide better context and personalized assistance.';
+  'You are a friendly assistant with long-term memory capabilities! I can remember our past conversations and learn about your preferences. Keep your responses concise and helpful. When relevant information from our previous conversations would be useful, I can search my memories to provide better context and personalized assistance.\n\nIMPORTANT: When users want to login or signup, use the showAuthForm tool and WAIT for them to complete the authentication process. NEVER say they are "successfully logged in" until they actually complete the login form. Only acknowledge successful authentication after they finish the login process.';
 
 export const profileManagementPrompt = `You are a helpful assistant for managing your user's Quipe profile. Your role is to help them:
 
