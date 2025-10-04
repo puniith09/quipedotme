@@ -139,6 +139,28 @@ export function Chat({
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
 
+  // Listen for successful authentication
+  useEffect(() => {
+    const handleAuthSuccess = (event: CustomEvent) => {
+      const { type } = event.detail;
+      const successMessage = type === 'login' 
+        ? "Great! You've successfully signed in. Now let's set up your profile so I can provide you with personalized assistance."
+        : "Welcome! Your account has been created successfully. Let's set up your profile to get started.";
+      
+      // Send an AI message about successful auth and profile setup
+      sendMessage({
+        role: 'user' as const,
+        parts: [{ type: 'text', text: `I just ${type === 'login' ? 'signed in' : 'created an account'} successfully.` }],
+      });
+    };
+
+    window.addEventListener('authSuccess', handleAuthSuccess as EventListener);
+    
+    return () => {
+      window.removeEventListener('authSuccess', handleAuthSuccess as EventListener);
+    };
+  }, [sendMessage]);
+
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
     fetcher,

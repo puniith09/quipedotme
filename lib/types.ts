@@ -4,6 +4,7 @@ import type { createDocument } from './ai/tools/create-document';
 import type { updateDocument } from './ai/tools/update-document';
 import type { requestSuggestions } from './ai/tools/request-suggestions';
 import type { showAuthForm } from './ai/tools/show-auth-form';
+import type { profileSetup } from './ai/tools/profile-setup';
 import type { InferUITool, LanguageModelUsage, UIMessage } from 'ai';
 
 import type { ArtifactKind } from '@/components/artifact';
@@ -24,6 +25,7 @@ type requestSuggestionsTool = InferUITool<
   ReturnType<typeof requestSuggestions>
 >;
 type showAuthFormTool = InferUITool<typeof showAuthForm>;
+type profileSetupTool = InferUITool<typeof profileSetup>;
 
 export type ChatTools = {
   getWeather: weatherTool;
@@ -31,6 +33,7 @@ export type ChatTools = {
   updateDocument: updateDocumentTool;
   requestSuggestions: requestSuggestionsTool;
   showAuthForm: showAuthFormTool;
+  profileSetup: profileSetupTool;
 };
 
 export type CustomUIDataTypes = {

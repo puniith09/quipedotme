@@ -286,6 +286,23 @@ const PurePreviewMessage = ({
                 </div>
               );
             }
+
+            if (type === 'tool-profileSetup') {
+              const { toolCallId } = part;
+
+              if (!part.output) {
+                return null;
+              }
+
+              return (
+                <div key={toolCallId} className="my-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="text-blue-800 dark:text-blue-200">
+                    <h3 className="font-semibold mb-2">🎉 Welcome to Quipe!</h3>  
+                    <p className="text-sm">{part.output.message}</p>
+                  </div>
+                </div>
+              );
+            }
           })}
 
           {!isReadonly && (

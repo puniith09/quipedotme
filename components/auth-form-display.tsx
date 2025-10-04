@@ -18,34 +18,25 @@ export function AuthFormDisplay({ message, defaultMode }: AuthFormDisplayProps) 
   const [authMode, setAuthMode] = useState<'login' | 'register'>(defaultMode === 'login' ? 'login' : 'register');
   const [loginState, loginAction] = useActionState<LoginActionState, FormData>(login, { status: 'idle' });
   const [registerState, registerAction] = useActionState<RegisterActionState, FormData>(register, { status: 'idle' });
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const router = useRouter();
 
   // Handle successful authentication
   useEffect(() => {
     if (loginState.status === 'success' || registerState.status === 'success') {
-      setShowSuccessMessage(true);
-      // Delay refresh to show success message
+      // Trigger AI response by sending a message to the chat
+      const event = new CustomEvent('authSuccess', { 
+        detail: { 
+          type: authMode === 'login' ? 'login' : 'registration' 
+        } 
+      });
+      window.dispatchEvent(event);
+      
+      // Refresh page after a short delay
       setTimeout(() => {
         router.refresh();
-      }, 2000);
+      }, 1000);
     }
-  }, [loginState.status, registerState.status, router]);
-
-  // Show success message after login
-  if (showSuccessMessage) {
-    return (
-      <Card className="max-w-md mx-auto my-4">
-        <CardContent className="p-6 text-center">
-          <div className="text-green-600 mb-2">✓</div>
-          <h3 className="font-semibold text-lg mb-2">Welcome!</h3>
-          <p className="text-muted-foreground">
-            Thanks for logging in! Let's set up your profile and get you started.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [loginState.status, registerState.status, router, authMode]);
 
   return (
     <Card className="max-w-md mx-auto my-4">
