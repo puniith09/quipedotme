@@ -43,6 +43,24 @@ export interface ChatHistory {
 
 const PAGE_SIZE = 20;
 
+const groupChatsByUsername = (chats: Chat[]): Chat[] => {
+  // For username chats, group by targetUsername and keep only the most recent chat for each username
+  const usernameMap = new Map<string, Chat>();
+  
+  chats.forEach((chat) => {
+    if (chat.targetUsername) {
+      const existing = usernameMap.get(chat.targetUsername);
+      if (!existing || new Date(chat.createdAt) > new Date(existing.createdAt)) {
+        usernameMap.set(chat.targetUsername, chat);
+      }
+    }
+  });
+  
+  return Array.from(usernameMap.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+};
+
 const groupChatsByDate = (chats: Chat[]): GroupedChats => {
   const now = new Date();
   const oneWeekAgo = subWeeks(now, 1);
@@ -79,23 +97,29 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
 export function getChatHistoryPaginationKey(
   pageIndex: number,
   previousPageData: ChatHistory,
+  isUsernamePage: boolean = false,
 ) {
   if (previousPageData && previousPageData.hasMore === false) {
     return null;
   }
 
-  if (pageIndex === 0) return `/api/history?limit=${PAGE_SIZE}`;
+  const chatTypeParam = isUsernamePage ? '&chatType=username_chat' : '';
+
+  if (pageIndex === 0) return `/api/history?limit=${PAGE_SIZE}${chatTypeParam}`;
 
   const firstChatFromPage = previousPageData.chats.at(-1);
 
   if (!firstChatFromPage) return null;
 
-  return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
+  return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}${chatTypeParam}`;
 }
 
 export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
-  const { id } = useParams();
+  const { id, username } = useParams();
+  
+  // Check if we're on a username-based chat page
+  const isUsernamePage = !!username;
 
   // Only make API calls if user is authenticated
   const {
@@ -105,7 +129,8 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     isLoading,
     mutate,
   } = useSWRInfinite<ChatHistory>(
-    user ? getChatHistoryPaginationKey : () => null,
+    user ? (pageIndex: number, previousPageData: ChatHistory) => 
+      getChatHistoryPaginationKey(pageIndex, previousPageData, isUsernamePage) : () => null,
     fetcher,
     {
       fallbackData: [],
@@ -216,6 +241,35 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                 const chatsFromHistory = paginatedChatHistories.flatMap(
                   (paginatedChatHistory) => paginatedChatHistory.chats,
                 );
+
+                // For username pages, show unique usernames; for regular pages, show date-grouped chats
+                if (isUsernamePage) {
+                  const uniqueUsernameChats = groupChatsByUsername(chatsFromHistory);
+                  
+                  return (
+                    <div className="flex flex-col gap-2">
+                      {uniqueUsernameChats.length > 0 && (
+                        <div>
+                          <div className="px-2 py-1 text-sidebar-foreground/50 text-xs">
+                            Conversations
+                          </div>
+                          {uniqueUsernameChats.map((chat) => (
+                            <ChatItem
+                              key={chat.targetUsername}
+                              chat={chat}
+                              isActive={chat.targetUsername === username}
+                              onDelete={(chatId) => {
+                                setDeleteId(chatId);
+                                setShowDeleteDialog(true);
+                              }}
+                              setOpenMobile={setOpenMobile}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
                 const groupedChats = groupChatsByDate(chatsFromHistory);
 

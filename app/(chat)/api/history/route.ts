@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   
   const startingAfter = searchParams.get('starting_after');
   const endingBefore = searchParams.get('ending_before');
+  const chatType = searchParams.get('chatType') as 'profile_management' | 'username_chat' | null;
 
   if (startingAfter && endingBefore) {
     return new ChatSDKError(
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
       limit,
       startingAfter,
       endingBefore,
+      chatType,
     });
 
     return Response.json(chats);

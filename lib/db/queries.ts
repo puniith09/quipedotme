@@ -187,26 +187,36 @@ export async function getChatsByUserId({
   limit,
   startingAfter,
   endingBefore,
+  chatType,
 }: {
   id: string;
   limit: number;
   startingAfter: string | null;
   endingBefore: string | null;
+  chatType?: 'profile_management' | 'username_chat' | null;
 }) {
   try {
     const extendedLimit = limit + 1;
 
-    const query = (whereCondition?: SQL<any>) =>
-      db
+    const query = (whereCondition?: SQL<any>) => {
+      const baseConditions = [eq(chat.userId, id)];
+      
+      // Add chatType filter if provided
+      if (chatType) {
+        baseConditions.push(eq(chat.chatType, chatType));
+      }
+      
+      const finalCondition = whereCondition 
+        ? and(whereCondition, ...baseConditions)
+        : and(...baseConditions);
+        
+      return db
         .select()
         .from(chat)
-        .where(
-          whereCondition
-            ? and(whereCondition, eq(chat.userId, id))
-            : eq(chat.userId, id),
-        )
+        .where(finalCondition)
         .orderBy(desc(chat.createdAt))
         .limit(extendedLimit);
+    };
 
     let filteredChats: Array<Chat> = [];
 
