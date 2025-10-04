@@ -19,6 +19,8 @@ import type { Session } from 'next-auth';
 import { useSearchParams } from 'next/navigation';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
+import { AuthPrompt } from './auth-prompt';
+import { signIn } from 'next-auth/react';
 import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
@@ -35,6 +37,7 @@ export function Chat({
   profileOwner,
   isPublicProfile = false,
   targetUsername,
+  showAuthPrompt = false,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -47,6 +50,7 @@ export function Chat({
   profileOwner?: { id: string; email: string; username: string | null };
   isPublicProfile?: boolean;
   targetUsername?: string;
+  showAuthPrompt?: boolean;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -145,6 +149,7 @@ export function Chat({
   );
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+  const [showAuthPromptState, setShowAuthPromptState] = useState(showAuthPrompt);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
   useAutoResume({
@@ -153,6 +158,15 @@ export function Chat({
     resumeStream,
     setMessages,
   });
+
+  const handleSkipAuth = async () => {
+    try {
+      await signIn('guest', { redirect: false });
+      setShowAuthPromptState(false);
+    } catch (error) {
+      console.error('Failed to create guest session:', error);
+    }
+  };
 
   return (
     <>
@@ -164,37 +178,45 @@ export function Chat({
           session={session}
         />
 
-        <Messages
-          chatId={id}
-          status={status}
-          votes={votes}
-          messages={messages}
-          setMessages={setMessages}
-          regenerate={regenerate}
-          isReadonly={isReadonly}
-          isArtifactVisible={isArtifactVisible}
-          selectedModelId={initialChatModel}
-        />
+        {showAuthPromptState ? (
+          <div className="flex flex-1 items-center justify-center p-4">
+            <AuthPrompt onSkip={handleSkipAuth} />
+          </div>
+        ) : (
+          <Messages
+            chatId={id}
+            status={status}
+            votes={votes}
+            messages={messages}
+            setMessages={setMessages}
+            regenerate={regenerate}
+            isReadonly={isReadonly}
+            isArtifactVisible={isArtifactVisible}
+            selectedModelId={initialChatModel}
+          />
+        )}
 
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-          {!isReadonly && (
-            <MultimodalInput
-              chatId={id}
-              input={input}
-              setInput={setInput}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              selectedVisibilityType={visibilityType}
-              selectedModelId={initialChatModel}
-              usage={usage}
-            />
-          )}
-        </div>
+        {!showAuthPromptState && (
+          <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
+            {!isReadonly && (
+              <MultimodalInput
+                chatId={id}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                sendMessage={sendMessage}
+                selectedVisibilityType={visibilityType}
+                selectedModelId={initialChatModel}
+                usage={usage}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <Artifact
