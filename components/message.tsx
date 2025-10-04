@@ -273,6 +273,10 @@ const PurePreviewMessage = ({
             if (type === 'tool-showAuthForm') {
               const { toolCallId } = part;
 
+              if (!part.output) {
+                return null;
+              }
+
               return (
                 <div key={toolCallId} className="my-4">
                   <AuthFormDisplay
