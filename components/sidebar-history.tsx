@@ -24,6 +24,24 @@ import {
 import { fetcher } from '@/lib/utils';
 import { ChatItem } from './sidebar-history-item';
 import useSWR from 'swr';
+import type { Chat } from '@/lib/db/schema';
+
+// Export the ChatHistory type for compatibility
+export interface ChatHistory {
+  chats: Array<Chat>;
+  hasMore: boolean;
+}
+
+// Export this function for compatibility with other components that import it
+export function getChatHistoryPaginationKey(
+  pageIndex?: number,
+  previousPageData?: any,
+  showUsernameChats?: boolean
+) {
+  // This function is no longer used in the simplified sidebar but kept for compatibility
+  // Return null to indicate no more pages to load
+  return null;
+}
 
 
 
