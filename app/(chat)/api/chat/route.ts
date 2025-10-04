@@ -27,6 +27,7 @@ import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { getSupermemoryTools } from '@/lib/ai/tools/supermemory';
 import { getProfileManagementTools } from '@/lib/ai/tools/profile-management';
+import { showAuthForm } from '@/lib/ai/tools/show-auth-form';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -210,8 +211,8 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : hasProfileTools
-                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'updateProfileInfo', 'searchMyProfile', 'addMemory', 'searchMemories'] as any)
-                : ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions'],
+                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'updateProfileInfo', 'searchMyProfile', 'addMemory', 'searchMemories', 'showAuthForm'] as any)
+                : ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'showAuthForm'],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: hasProfileTools
             ? {
@@ -222,6 +223,7 @@ export async function POST(request: Request) {
                   session,
                   dataStream,
                 }),
+                showAuthForm,
                 ...profileManagementTools!,
               }
             : {
@@ -232,6 +234,7 @@ export async function POST(request: Request) {
                   session,
                   dataStream,
                 }),
+                showAuthForm,
               },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

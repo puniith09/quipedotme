@@ -6,6 +6,7 @@ import { DocumentToolResult } from './document';
 import { SparklesIcon } from './icons';
 import { Response } from './elements/response';
 import { MessageContent } from './elements/message';
+import { AuthFormDisplay } from './auth-form-display';
 import {
   Tool,
   ToolHeader,
@@ -266,6 +267,19 @@ const PurePreviewMessage = ({
                     )}
                   </ToolContent>
                 </Tool>
+              );
+            }
+
+            if (type === 'tool-showAuthForm') {
+              const { toolCallId } = part;
+
+              return (
+                <div key={toolCallId} className="my-4">
+                  <AuthFormDisplay
+                    message={part.output.message}
+                    defaultMode={part.output.defaultMode}
+                  />
+                </div>
               );
             }
           })}
