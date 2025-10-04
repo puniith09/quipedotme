@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -669,6 +670,71 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+export async function getUsernameChats({
+  userId,
+}: {
+  userId: string;
+}) {
+  try {
+    const usernameChats = await db
+      .select({
+        targetUsername: chat.targetUsername,
+        createdAt: chat.createdAt,
+      })
+      .from(chat)
+      .where(
+        and(
+          eq(chat.userId, userId),
+          eq(chat.chatType, 'username_chat'),
+          // Only get chats that have a targetUsername
+          sql`${chat.targetUsername} IS NOT NULL`
+        )
+      )
+      .orderBy(desc(chat.createdAt))
+      .execute();
+
+    // Get unique usernames with their most recent chat date
+    const usernameMap = new Map<string, { username: string; lastChatDate: Date }>();
+    
+    usernameChats.forEach((chat) => {
+      if (chat.targetUsername) {
+        const existing = usernameMap.get(chat.targetUsername);
+        if (!existing || chat.createdAt > existing.lastChatDate) {
+          usernameMap.set(chat.targetUsername, {
+            username: chat.targetUsername,
+            lastChatDate: chat.createdAt,
+          });
+        }
+      }
+    });
+
+    // Return sorted by most recent chat
+    return Array.from(usernameMap.values())
+      .sort((a, b) => b.lastChatDate.getTime() - a.lastChatDate.getTime())
+      .map(item => item.username);
+
+  } catch (error) {
+    console.error('Database error in getUsernameChats:', error);
+    
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to get username chats: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
