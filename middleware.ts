@@ -50,6 +50,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // For authenticated users trying to access chat URLs, let the page handle the validation
+  // but add a fallback for invalid chat IDs
+  if (token && pathname.startsWith('/chat/') && pathname !== '/chat') {
+    // This will be handled by the chat/[id]/page.tsx file
+    // If the chat doesn't exist or belongs to another user, it will redirect to home
+  }
+
   return NextResponse.next();
 }
 

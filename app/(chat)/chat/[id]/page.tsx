@@ -25,11 +25,13 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   if (chat.visibility === 'private') {
     if (!session.user) {
-      return notFound();
+      redirect('/');
     }
 
     if (session.user.id !== chat.userId) {
-      return notFound();
+      // If the chat belongs to a guest user and current user is authenticated,
+      // redirect to home - the ChatTransferHandler will handle the transfer
+      redirect('/');
     }
   }
 

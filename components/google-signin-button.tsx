@@ -1,32 +1,28 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useParams, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
+import { prepareChatTransfer } from './chat-transfer-handler';
 
 export function GoogleSignInButton() {
   const pathname = usePathname();
   const params = useParams();
+  const { data: session } = useSession();
 
   const handleGoogleSignIn = async () => {
+    // Prepare chat transfer if user is currently on a chat page as a guest
+    prepareChatTransfer(session);
+    
     if (pathname.startsWith('/chat/')) {
       const chatId = pathname.split('/').pop() || '';
       
-      // Store auth intent and chat ID
+      // Store auth intent and chat ID for backup
       sessionStorage.setItem('authIntent', 'existing_chat');
       sessionStorage.setItem('chatId', chatId);
       
-      // Force save the current chat before OAuth redirect
-      const saveEvent = new CustomEvent('saveChatBeforeOAuth', { 
-        detail: { chatId } 
-      });
-      window.dispatchEvent(saveEvent);
-      
-      // Small delay to allow chat to be saved
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Return to the same chat after OAuth
-      signIn('google', { callbackUrl: pathname });
+      // Return to home after OAuth, the ChatTransferHandler will redirect to the chat if transfer is successful
+      signIn('google', { callbackUrl: '/' });
     } else {
       // For root page, redirect to root after OAuth
       sessionStorage.setItem('authIntent', 'oauth_return');

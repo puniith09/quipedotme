@@ -588,6 +588,32 @@ export async function updateChatLastContextById({
   }
 }
 
+export async function transferGuestChatsToUser({
+  guestUserId,
+  newUserId,
+}: {
+  guestUserId: string;
+  newUserId: string;
+}) {
+  try {
+    // Transfer all chats from guest user to new authenticated user
+    const result = await db
+      .update(chat)
+      .set({ userId: newUserId })
+      .where(eq(chat.userId, guestUserId))
+      .returning({ id: chat.id, title: chat.title });
+    
+    console.log(`Transferred ${result.length} chats from guest ${guestUserId} to user ${newUserId}`);
+    return result;
+  } catch (error) {
+    console.error('Failed to transfer guest chats to user:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to transfer chat ownership'
+    );
+  }
+}
+
 export async function getMessageCountByUserId({
   id,
   differenceInHours,
