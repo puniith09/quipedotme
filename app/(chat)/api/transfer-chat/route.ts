@@ -1,5 +1,5 @@
 import { auth } from '@/app/(auth)/auth';
-import { getChatById, transferGuestChatsToUser } from '@/lib/db/queries';
+import { getChatById, getOrCreateUserMainChat, mergeGuestMessagesToUserChat } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 import { NextRequest } from 'next/server';
 
@@ -43,14 +43,27 @@ export async function POST(request: NextRequest) {
     // TODO: Add additional validation to ensure guestUserId is actually a guest
     // const guestEmailPattern = /^guest-\d+/;
     
-    // Transfer all chats from guest user to authenticated user
-    // This preserves the user's conversation history across the login transition
-    await transferGuestChatsToUser({
-      guestUserId,
-      newUserId: session.user.id,
+    // Get or create user's main persistent chat
+    const userMainChat = await getOrCreateUserMainChat({
+      userId: session.user.id,
+      userEmail: session.user.email || 'user@example.com',
     });
 
-    return Response.json({ success: true, chatId });
+    if (!userMainChat) {
+      return new ChatSDKError('bad_request:api', 'Failed to create user main chat').toResponse();
+    }
+
+    // Merge guest messages into user's main chat
+    const mergedCount = await mergeGuestMessagesToUserChat({
+      guestUserId,
+      userMainChatId: userMainChat.id,
+    });
+
+    return Response.json({ 
+      success: true, 
+      chatId: userMainChat.id, 
+      mergedMessages: mergedCount 
+    });
   } catch (error) {
     console.error('Error transferring chat:', error);
     return new ChatSDKError('bad_request:api', 'Failed to transfer chat').toResponse();

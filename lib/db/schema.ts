@@ -18,6 +18,7 @@ export const user = pgTable('User', {
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
   username: varchar('username', { length: 32 }).unique(),
+  mainChatId: uuid('mainChatId'), // User's persistent main chat ID
 });
 
 export type User = InferSelectModel<typeof user>;

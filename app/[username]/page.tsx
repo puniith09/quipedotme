@@ -1,64 +1,54 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { Chat } from '@/components/chat';
-import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { generateUUID } from '@/lib/utils';
-import { DataStreamHandler } from '@/components/data-stream-handler';
 import { getUserByUsername } from '@/lib/db/queries';
+import { Chat } from '@/components/chat';
+import { generateUUID } from '@/lib/utils';
+import { auth } from '@/app/(auth)/auth';
 
-interface PublicProfilePageProps {
-  params: Promise<{
-    username: string;
-  }>;
-}
-
-export default async function PublicProfilePage({
-  params,
-}: PublicProfilePageProps) {
+export default async function UsernamePage({ 
+  params 
+}: { 
+  params: Promise<{ username: string }> 
+}) {
   const { username } = await params;
   
-  // Get the profile owner by username
+  // Get the profile owner's information
   const profileOwner = await getUserByUsername(username);
   
   if (!profileOwner) {
     notFound();
   }
 
+  // Get the current session (visitor)
+  const session = await auth();
+
+  // Generate a unique chat ID for this session
   const chatId = generateUUID();
 
   return (
-    <>
-      <DataStreamHandler />
-      <Chat
-        key={chatId}
-        id={chatId}
-        initialMessages={[]}
-        initialChatModel={DEFAULT_CHAT_MODEL}
-        initialVisibilityType="public"
-        isReadonly={false}
-        session={null}
-        autoResume={false}
-        profileOwner={profileOwner}
-        isPublicProfile={true}
-        targetUsername={username}
-      />
-    </>
+    <div className="flex min-h-screen bg-background">
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          <Suspense fallback={<div>Loading...</div>}>
+            <Chat
+              id={chatId}
+              initialMessages={[]}
+              initialChatModel="grok-2-vision-1212"
+              initialVisibilityType="private"
+              isReadonly={false}
+              session={session}
+              autoResume={false}
+              profileOwner={{
+                id: profileOwner.id,
+                username: profileOwner.username!,
+                email: profileOwner.email,
+              }}
+              isPublicProfile={true}
+              targetUsername={username}
+            />
+          </Suspense>
+        </div>
+      </div>
+    </div>
   );
-}
-
-export async function generateMetadata({
-  params,
-}: PublicProfilePageProps) {
-  const { username } = await params;
-  const profileOwner = await getUserByUsername(username);
-  
-  if (!profileOwner) {
-    return {
-      title: 'Profile Not Found',
-    };
-  }
-
-  return {
-    title: `Chat with ${username} | Quipe`,
-    description: `Have a conversation with ${username}'s AI representative. Ask about their work, interests, and experience.`,
-  };
 }

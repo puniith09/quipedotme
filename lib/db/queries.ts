@@ -614,6 +614,101 @@ export async function transferGuestChatsToUser({
   }
 }
 
+export async function getOrCreateUserMainChat({
+  userId,
+  userEmail,
+}: {
+  userId: string;
+  userEmail: string;
+}) {
+  try {
+    // Check if user already has a main chat ID
+    const [userRecord] = await db.select().from(user).where(eq(user.id, userId));
+    
+    if (userRecord?.mainChatId) {
+      // Return existing main chat
+      const existingChat = await getChatById({ id: userRecord.mainChatId });
+      if (existingChat) {
+        return existingChat;
+      }
+    }
+    
+    // Create new main chat for user
+    const chatId = generateUUID();
+    const chatTitle = `${userEmail.split('@')[0]}'s Chat`;
+    
+    // Create the chat
+    await saveChat({
+      id: chatId,
+      userId,
+      title: chatTitle,
+      visibility: 'private'
+    });
+    
+    // Update user's mainChatId
+    await db
+      .update(user)
+      .set({ mainChatId: chatId })
+      .where(eq(user.id, userId));
+    
+    const newChat = await getChatById({ id: chatId });
+    return newChat;
+  } catch (error) {
+    console.error('Failed to get or create user main chat:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create user main chat'
+    );
+  }
+}
+
+export async function mergeGuestMessagesToUserChat({
+  guestUserId,
+  userMainChatId,
+}: {
+  guestUserId: string;
+  userMainChatId: string;
+}) {
+  try {
+    // Get all guest chats
+    const guestChatResult = await getChatsByUserId({ 
+      id: guestUserId, 
+      limit: 100, 
+      startingAfter: null, 
+      endingBefore: null 
+    });
+    
+    let totalMergedMessages = 0;
+    
+    for (const guestChat of guestChatResult.chats) {
+      // Get messages from guest chat
+      const guestMessages = await getMessagesByChatId({ id: guestChat.id });
+      
+      // Update messages to belong to user's main chat
+      for (const guestMessage of guestMessages) {
+        await db
+          .update(message)
+          .set({ chatId: userMainChatId })
+          .where(eq(message.id, guestMessage.id));
+        
+        totalMergedMessages++;
+      }
+      
+      // Delete the guest chat after merging messages
+      await deleteChatById({ id: guestChat.id });
+    }
+    
+    console.log(`Merged ${totalMergedMessages} messages from guest ${guestUserId} to main chat ${userMainChatId}`);
+    return totalMergedMessages;
+  } catch (error) {
+    console.error('Failed to merge guest messages:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to merge guest messages'
+    );
+  }
+}
+
 export async function getMessageCountByUserId({
   id,
   differenceInHours,
