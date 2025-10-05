@@ -28,6 +28,7 @@ declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     id: string;
     type: UserType;
+    previousGuestId?: string;
   }
 }
 
@@ -96,8 +97,17 @@ export const {
     },
     async jwt({ token, user }) {
       if (user) {
+        // Check if this is a transition from guest to authenticated user
+        const isGuestTransition = token.type === 'guest' && user.type === 'regular';
+        const previousGuestId = isGuestTransition ? token.id : null;
+        
         token.id = user.id as string;
         token.type = user.type || 'regular';
+        
+        // Store guest ID for potential message merging
+        if (isGuestTransition && previousGuestId) {
+          token.previousGuestId = previousGuestId;
+        }
       }
 
       return token;

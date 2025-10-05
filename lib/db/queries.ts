@@ -595,119 +595,11 @@ export async function transferGuestChatsToUser({
   guestUserId: string;
   newUserId: string;
 }) {
-  try {
-    // Transfer all chats from guest user to new authenticated user
-    const result = await db
-      .update(chat)
-      .set({ userId: newUserId })
-      .where(eq(chat.userId, guestUserId))
-      .returning({ id: chat.id, title: chat.title });
-    
-    console.log(`Transferred ${result.length} chats from guest ${guestUserId} to user ${newUserId}`);
-    return result;
-  } catch (error) {
-    console.error('Failed to transfer guest chats to user:', error);
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to transfer chat ownership'
-    );
-  }
+  // Use the new merge function instead
+  return await mergeGuestMessagesToUserChat({ guestUserId, newUserId });
 }
 
-export async function getOrCreateUserMainChat({
-  userId,
-  userEmail,
-}: {
-  userId: string;
-  userEmail: string;
-}) {
-  try {
-    // Check if user already has a main chat ID
-    const [userRecord] = await db.select().from(user).where(eq(user.id, userId));
-    
-    if (userRecord?.mainChatId) {
-      // Return existing main chat
-      const existingChat = await getChatById({ id: userRecord.mainChatId });
-      if (existingChat) {
-        return existingChat;
-      }
-    }
-    
-    // Create new main chat for user
-    const chatId = generateUUID();
-    const chatTitle = `${userEmail.split('@')[0]}'s Chat`;
-    
-    // Create the chat
-    await saveChat({
-      id: chatId,
-      userId,
-      title: chatTitle,
-      visibility: 'private'
-    });
-    
-    // Update user's mainChatId
-    await db
-      .update(user)
-      .set({ mainChatId: chatId })
-      .where(eq(user.id, userId));
-    
-    const newChat = await getChatById({ id: chatId });
-    return newChat;
-  } catch (error) {
-    console.error('Failed to get or create user main chat:', error);
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to create user main chat'
-    );
-  }
-}
 
-export async function mergeGuestMessagesToUserChat({
-  guestUserId,
-  userMainChatId,
-}: {
-  guestUserId: string;
-  userMainChatId: string;
-}) {
-  try {
-    // Get all guest chats
-    const guestChatResult = await getChatsByUserId({ 
-      id: guestUserId, 
-      limit: 100, 
-      startingAfter: null, 
-      endingBefore: null 
-    });
-    
-    let totalMergedMessages = 0;
-    
-    for (const guestChat of guestChatResult.chats) {
-      // Get messages from guest chat
-      const guestMessages = await getMessagesByChatId({ id: guestChat.id });
-      
-      // Update messages to belong to user's main chat
-      for (const guestMessage of guestMessages) {
-        await db
-          .update(message)
-          .set({ chatId: userMainChatId })
-          .where(eq(message.id, guestMessage.id));
-        
-        totalMergedMessages++;
-      }
-      
-      // Delete the guest chat after merging messages
-      await deleteChatById({ id: guestChat.id });
-    }
-    
-    console.log(`Merged ${totalMergedMessages} messages from guest ${guestUserId} to main chat ${userMainChatId}`);
-    return totalMergedMessages;
-  } catch (error) {
-    console.error('Failed to merge guest messages:', error);
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to merge guest messages'
-    );
-  }
-}
 
 export async function getMessageCountByUserId({
   id,
@@ -856,6 +748,92 @@ export async function getUsernameChats({
     throw new ChatSDKError(
       'bad_request:database',
       `Failed to get username chats: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  }
+}
+
+export async function getUserPermanentChatId(userId: string): Promise<string> {
+  try {
+    // Check if user already has a permanent chat
+    const existingChat = await db
+      .select({ id: chat.id })
+      .from(chat)
+      .where(and(
+        eq(chat.userId, userId),
+        eq(chat.chatType, 'profile_management')
+      ))
+      .limit(1);
+
+    if (existingChat.length > 0) {
+      return existingChat[0].id;
+    }
+
+    // Create new permanent chat for user
+    const newChatId = generateUUID();
+    await saveChat({
+      id: newChatId,
+      userId,
+      title: 'My Chat History',
+      visibility: 'private',
+      chatType: 'profile_management',
+    });
+
+    return newChatId;
+  } catch (error) {
+    console.error('Failed to get/create permanent chat:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get permanent chat ID'
+    );
+  }
+}
+
+export async function mergeGuestMessagesToUserChat({
+  guestUserId,
+  newUserId,
+}: {
+  guestUserId: string;
+  newUserId: string;
+}) {
+  try {
+    // Get user's permanent chat ID
+    const permanentChatId = await getUserPermanentChatId(newUserId);
+    
+    // Get all messages from guest user's chats
+    const guestMessages = await db
+      .select({
+        id: message.id,
+        chatId: message.chatId,
+        role: message.role,
+        parts: message.parts,
+        createdAt: message.createdAt,
+        attachments: message.attachments,
+      })
+      .from(message)
+      .innerJoin(chat, eq(message.chatId, chat.id))
+      .where(eq(chat.userId, guestUserId));
+
+    // Transfer messages to permanent chat
+    if (guestMessages.length > 0) {
+      const messagesToTransfer = guestMessages.map((msg) => ({
+        ...msg,
+        chatId: permanentChatId,
+        id: generateUUID(), // Generate new IDs to avoid conflicts
+      }));
+
+      await db.insert(message).values(messagesToTransfer);
+    }
+
+    // Delete guest chats after merging
+    await db.delete(chat).where(eq(chat.userId, guestUserId));
+    
+    console.log(`Merged ${guestMessages.length} messages to permanent chat ${permanentChatId}`);
+    return permanentChatId;
+  } catch (error) {
+    console.error('Failed to merge guest messages:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to merge chat history'
     );
   }
 }

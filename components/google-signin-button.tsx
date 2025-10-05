@@ -3,7 +3,6 @@
 import { signIn, useSession } from 'next-auth/react';
 import { useParams, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
-import { prepareChatTransfer } from './chat-transfer-handler';
 
 export function GoogleSignInButton() {
   const pathname = usePathname();
@@ -11,23 +10,8 @@ export function GoogleSignInButton() {
   const { data: session } = useSession();
 
   const handleGoogleSignIn = async () => {
-    // Prepare chat transfer if user is currently on a chat page as a guest
-    prepareChatTransfer(session);
-    
-    if (pathname.startsWith('/chat/')) {
-      const chatId = pathname.split('/').pop() || '';
-      
-      // Store auth intent and chat ID for backup
-      sessionStorage.setItem('authIntent', 'existing_chat');
-      sessionStorage.setItem('chatId', chatId);
-      
-      // Return to home after OAuth, the ChatTransferHandler will redirect to the chat if transfer is successful
-      signIn('google', { callbackUrl: '/' });
-    } else {
-      // For root page, redirect to root after OAuth
-      sessionStorage.setItem('authIntent', 'oauth_return');
-      signIn('google', { callbackUrl: '/' });
-    }
+    // Always redirect to home after OAuth - messages will be automatically merged
+    signIn('google', { callbackUrl: '/' });
   };
 
   return (

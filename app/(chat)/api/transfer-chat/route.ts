@@ -1,11 +1,11 @@
 import { auth } from '@/app/(auth)/auth';
-import { getChatById, getOrCreateUserMainChat, mergeGuestMessagesToUserChat } from '@/lib/db/queries';
+import { getChatById, transferGuestChatsToUser } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 import { NextRequest } from 'next/server';
 
 /**
- * Transfer chat ownership from guest user to authenticated user
- * This API handles the seamless transition of chat ownership when users
+ * Merge guest messages into user's permanent chat
+ * This API handles the seamless transition of messages when users
  * log in after starting a conversation as a guest
  */
 export async function POST(request: NextRequest) {
@@ -17,52 +17,33 @@ export async function POST(request: NextRequest) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    // Extract chat transfer parameters
-    const { chatId, guestUserId } = await request.json();
+    // Extract merge parameters
+    const { guestUserId, newUserId } = await request.json();
 
     // Validate required parameters
-    if (!chatId || !guestUserId) {
+    if (!guestUserId || !newUserId) {
       return new ChatSDKError(
         'bad_request:api',
-        'chatId and guestUserId are required'
+        'guestUserId and newUserId are required'
       ).toResponse();
     }
 
-    // Verify the chat exists and belongs to the guest user
-    const chat = await getChatById({ id: chatId });
-    
-    if (!chat) {
-      return new ChatSDKError('not_found:chat').toResponse();
-    }
-
-    // Ensure the chat actually belongs to the guest user
-    if (chat.userId !== guestUserId) {
+    // Ensure the authenticated user is the target user
+    if (session.user.id !== newUserId) {
       return new ChatSDKError('forbidden:chat').toResponse();
     }
 
-    // TODO: Add additional validation to ensure guestUserId is actually a guest
-    // const guestEmailPattern = /^guest-\d+/;
-    
-    // Get or create user's main persistent chat
-    const userMainChat = await getOrCreateUserMainChat({
-      userId: session.user.id,
-      userEmail: session.user.email || 'user@example.com',
-    });
-
-    if (!userMainChat) {
-      return new ChatSDKError('bad_request:api', 'Failed to create user main chat').toResponse();
-    }
-
-    // Merge guest messages into user's main chat
-    const mergedCount = await mergeGuestMessagesToUserChat({
+    // Merge guest messages into user's permanent chat
+    // This preserves the user's conversation history across the login transition
+    const permanentChatId = await transferGuestChatsToUser({
       guestUserId,
-      userMainChatId: userMainChat.id,
+      newUserId: session.user.id,
     });
 
     return Response.json({ 
       success: true, 
-      chatId: userMainChat.id, 
-      mergedMessages: mergedCount 
+      permanentChatId,
+      message: 'Messages successfully merged into your permanent chat' 
     });
   } catch (error) {
     console.error('Error transferring chat:', error);

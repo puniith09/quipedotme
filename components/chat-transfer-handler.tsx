@@ -14,34 +14,30 @@ export function ChatTransferHandler() {
         return;
       }
 
-      // Check if there's a chat transfer pending
-      const pendingTransfer = sessionStorage.getItem('pending-chat-transfer');
+      // Check if there's a previous guest ID in the token (from JWT callback)
+      const previousGuestId = (session as any)?.previousGuestId;
       
-      if (pendingTransfer) {
+      if (previousGuestId) {
         try {
-          const { chatId, guestUserId } = JSON.parse(pendingTransfer);
-          
-          // Clear the pending transfer first
-          sessionStorage.removeItem('pending-chat-transfer');
-          
-          // Attempt to transfer the chat
+          // Merge guest messages into user's permanent chat
           const response = await fetch('/api/transfer-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, guestUserId }),
+            body: JSON.stringify({ 
+              guestUserId: previousGuestId,
+              newUserId: session.user.id 
+            }),
           });
 
           if (response.ok) {
-            // Successfully transferred, redirect to the chat
-            router.push(`/chat/${chatId}`);
+            // Successfully merged, refresh the page to show merged messages
+            router.refresh();
+            console.log('Successfully merged guest messages');
           } else {
-            // Transfer failed, redirect to home to start fresh
-            router.push('/');
+            console.error('Failed to merge guest messages');
           }
         } catch (error) {
-          console.error('Error during chat transfer:', error);
-          // On error, redirect to home
-          router.push('/');
+          console.error('Error during message merge:', error);
         }
       }
     }
