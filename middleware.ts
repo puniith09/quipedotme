@@ -17,6 +17,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow public access to username profile pages (e.g., /[username])
+  // These are public profile pages that don't require authentication
+  const isUsernameRoute = pathname.match(/^\/[a-zA-Z0-9_-]+$/) && 
+                         !['/', '/login', '/register', '/chat', '/offline'].includes(pathname);
+  
+  if (isUsernameRoute) {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
@@ -24,17 +33,28 @@ export async function middleware(request: NextRequest) {
   });
 
   if (!token) {
-    const redirectUrl = encodeURIComponent(request.url);
-
-    return NextResponse.redirect(
-      new URL(`/api/auth/guest?redirectUrl=${redirectUrl}`, request.url),
-    );
+    // Allow unauthenticated access to root page so we can show auth prompt
+    if (pathname === '/') {
+      return NextResponse.next();
+    }
+    
+    // For other protected routes, redirect to login
+    if (!['/login', '/register'].includes(pathname)) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
 
   const isGuest = guestRegex.test(token?.email ?? '');
 
   if (token && !isGuest && ['/login', '/register'].includes(pathname)) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // For authenticated users trying to access chat URLs, let the page handle the validation
+  // but add a fallback for invalid chat IDs
+  if (token && pathname.startsWith('/chat/') && pathname !== '/chat') {
+    // This will be handled by the chat/[id]/page.tsx file
+    // If the chat doesn't exist or belongs to another user, it will redirect to home
   }
 
   return NextResponse.next();

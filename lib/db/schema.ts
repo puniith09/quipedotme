@@ -17,6 +17,8 @@ export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
+  username: varchar('username', { length: 32 }).unique(),
+  mainChatId: uuid('mainChatId'), // User's persistent main chat ID
 });
 
 export type User = InferSelectModel<typeof user>;
@@ -31,6 +33,10 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
+  chatType: varchar('chatType', { enum: ['profile_management', 'username_chat'] })
+    .notNull()
+    .default('profile_management'),
+  targetUsername: varchar('targetUsername', { length: 32 }), // For username chats, stores which username they're chatting with
   lastContext: jsonb('lastContext').$type<LanguageModelV2Usage | null>(),
 });
 

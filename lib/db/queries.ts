@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -39,9 +40,19 @@ import type { LanguageModelV2Usage } from '@ai-sdk/provider';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+// Check if POSTGRES_URL is available
+if (!process.env.POSTGRES_URL) {
+  throw new Error('POSTGRES_URL environment variable is not set');
+}
+
+const client = postgres(process.env.POSTGRES_URL, {
+  max: 1,
+  // Add connection timeout and retry logic for production
+  connect_timeout: 10,
+  idle_timeout: 20,
+  max_lifetime: 60 * 30, // 30 minutes
+});
+export const db = drizzle(client);
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -105,16 +116,38 @@ export async function createGuestUser() {
   }
 }
 
+export async function getUserByUsername(username: string) {
+  try {
+    const result = await db
+      .select({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      })
+      .from(user)
+      .where(eq(user.username, username))
+      .limit(1);
+
+    return result[0] || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user by username');
+  }
+}
+
 export async function saveChat({
   id,
   userId,
   title,
   visibility,
+  chatType = 'profile_management',
+  targetUsername = null,
 }: {
   id: string;
   userId: string;
   title: string;
   visibility: VisibilityType;
+  chatType?: 'profile_management' | 'username_chat';
+  targetUsername?: string | null;
 }) {
   try {
     return await db.insert(chat).values({
@@ -123,6 +156,8 @@ export async function saveChat({
       userId,
       title,
       visibility,
+      chatType,
+      targetUsername,
     });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to save chat');
@@ -153,26 +188,36 @@ export async function getChatsByUserId({
   limit,
   startingAfter,
   endingBefore,
+  chatType,
 }: {
   id: string;
   limit: number;
   startingAfter: string | null;
   endingBefore: string | null;
+  chatType?: 'profile_management' | 'username_chat' | null;
 }) {
   try {
     const extendedLimit = limit + 1;
 
-    const query = (whereCondition?: SQL<any>) =>
-      db
+    const query = (whereCondition?: SQL<any>) => {
+      const baseConditions = [eq(chat.userId, id)];
+      
+      // Add chatType filter if provided
+      if (chatType) {
+        baseConditions.push(eq(chat.chatType, chatType));
+      }
+      
+      const finalCondition = whereCondition 
+        ? and(whereCondition, ...baseConditions)
+        : and(...baseConditions);
+        
+      return db
         .select()
         .from(chat)
-        .where(
-          whereCondition
-            ? and(whereCondition, eq(chat.userId, id))
-            : eq(chat.userId, id),
-        )
+        .where(finalCondition)
         .orderBy(desc(chat.createdAt))
         .limit(extendedLimit);
+    };
 
     let filteredChats: Array<Chat> = [];
 
@@ -217,9 +262,35 @@ export async function getChatsByUserId({
       hasMore,
     };
   } catch (error) {
+    console.error('Database error in getChatsByUserId:', error);
+    
+    // Check if it's a connection error
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
+    // Check if it's an authentication error
+    if (error instanceof Error && (
+      error.message.includes('authentication') ||
+      error.message.includes('permission')
+    )) {
+      throw new ChatSDKError(
+        'unauthorized:database',
+        'Database authentication failed',
+      );
+    }
+    
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get chats by user id',
+      `Failed to get chats by user id: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
@@ -517,6 +588,19 @@ export async function updateChatLastContextById({
   }
 }
 
+export async function transferGuestChatsToUser({
+  guestUserId,
+  newUserId,
+}: {
+  guestUserId: string;
+  newUserId: string;
+}) {
+  // Use the new merge function instead
+  return await mergeGuestMessagesToUserChat({ guestUserId, newUserId });
+}
+
+
+
 export async function getMessageCountByUserId({
   id,
   differenceInHours,
@@ -544,9 +628,24 @@ export async function getMessageCountByUserId({
 
     return stats?.count ?? 0;
   } catch (error) {
+    console.error('Database error in getMessageCountByUserId:', error);
+    
+    // Check if it's a connection error
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get message count by user id',
+      `Failed to get message count by user id: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   }
 }
@@ -584,6 +683,157 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+export async function getUsernameChats({
+  userId,
+}: {
+  userId: string;
+}) {
+  try {
+    const usernameChats = await db
+      .select({
+        targetUsername: chat.targetUsername,
+        createdAt: chat.createdAt,
+      })
+      .from(chat)
+      .where(
+        and(
+          eq(chat.userId, userId),
+          eq(chat.chatType, 'username_chat'),
+          // Only get chats that have a targetUsername
+          sql`${chat.targetUsername} IS NOT NULL`
+        )
+      )
+      .orderBy(desc(chat.createdAt))
+      .execute();
+
+    // Get unique usernames with their most recent chat date
+    const usernameMap = new Map<string, { username: string; lastChatDate: Date }>();
+    
+    usernameChats.forEach((chat) => {
+      if (chat.targetUsername) {
+        const existing = usernameMap.get(chat.targetUsername);
+        if (!existing || chat.createdAt > existing.lastChatDate) {
+          usernameMap.set(chat.targetUsername, {
+            username: chat.targetUsername,
+            lastChatDate: chat.createdAt,
+          });
+        }
+      }
+    });
+
+    // Return sorted by most recent chat
+    return Array.from(usernameMap.values())
+      .sort((a, b) => b.lastChatDate.getTime() - a.lastChatDate.getTime())
+      .map(item => item.username);
+
+  } catch (error) {
+    console.error('Database error in getUsernameChats:', error);
+    
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('timeout') ||
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      throw new ChatSDKError(
+        'offline:database',
+        'Database connection failed',
+      );
+    }
+    
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to get username chats: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  }
+}
+
+export async function getUserPermanentChatId(userId: string): Promise<string> {
+  try {
+    // Check if user already has a permanent chat
+    const existingChat = await db
+      .select({ id: chat.id })
+      .from(chat)
+      .where(and(
+        eq(chat.userId, userId),
+        eq(chat.chatType, 'profile_management')
+      ))
+      .limit(1);
+
+    if (existingChat.length > 0) {
+      return existingChat[0].id;
+    }
+
+    // Create new permanent chat for user
+    const newChatId = generateUUID();
+    await saveChat({
+      id: newChatId,
+      userId,
+      title: 'My Chat History',
+      visibility: 'private',
+      chatType: 'profile_management',
+    });
+
+    return newChatId;
+  } catch (error) {
+    console.error('Failed to get/create permanent chat:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get permanent chat ID'
+    );
+  }
+}
+
+export async function mergeGuestMessagesToUserChat({
+  guestUserId,
+  newUserId,
+}: {
+  guestUserId: string;
+  newUserId: string;
+}) {
+  try {
+    // Get user's permanent chat ID
+    const permanentChatId = await getUserPermanentChatId(newUserId);
+    
+    // Get all messages from guest user's chats
+    const guestMessages = await db
+      .select({
+        id: message.id,
+        chatId: message.chatId,
+        role: message.role,
+        parts: message.parts,
+        createdAt: message.createdAt,
+        attachments: message.attachments,
+      })
+      .from(message)
+      .innerJoin(chat, eq(message.chatId, chat.id))
+      .where(eq(chat.userId, guestUserId));
+
+    // Transfer messages to permanent chat
+    if (guestMessages.length > 0) {
+      const messagesToTransfer = guestMessages.map((msg) => ({
+        ...msg,
+        chatId: permanentChatId,
+        id: generateUUID(), // Generate new IDs to avoid conflicts
+      }));
+
+      await db.insert(message).values(messagesToTransfer);
+    }
+
+    // Delete guest chats after merging
+    await db.delete(chat).where(eq(chat.userId, guestUserId));
+    
+    console.log(`Merged ${guestMessages.length} messages to permanent chat ${permanentChatId}`);
+    return permanentChatId;
+  } catch (error) {
+    console.error('Failed to merge guest messages:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to merge chat history'
     );
   }
 }

@@ -32,15 +32,21 @@ export function Chat({
   session,
   autoResume,
   initialLastContext,
+  profileOwner,
+  isPublicProfile = false,
+  targetUsername,
 }: {
   id: string;
   initialMessages: ChatMessage[];
   initialChatModel: string;
   initialVisibilityType: VisibilityType;
   isReadonly: boolean;
-  session: Session;
+  session: Session | null;
   autoResume: boolean;
   initialLastContext?: LanguageModelUsage;
+  profileOwner?: { id: string; email: string; username: string | null };
+  isPublicProfile?: boolean;
+  targetUsername?: string;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -69,9 +75,23 @@ export function Chat({
     experimental_throttle: 100,
     generateId: generateUUID,
     transport: new DefaultChatTransport({
-      api: '/api/chat',
+      api: isPublicProfile ? '/api/profile-chat' : '/api/chat',
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest({ messages, id, body }) {
+        if (isPublicProfile && profileOwner) {
+          return {
+            body: {
+              chatId: id,
+              messages,
+              profileOwnerId: profileOwner.id,
+              profileOwnerUsername: profileOwner.username || 'User',
+              profileOwnerEmail: profileOwner.email,
+              selectedChatModel: initialChatModel,
+              ...body,
+            },
+          };
+        }
+        
         return {
           body: {
             id,
@@ -119,6 +139,81 @@ export function Chat({
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
 
+  // Listen for successful authentication
+  useEffect(() => {
+    const handleAuthSuccess = (event: CustomEvent) => {
+      const { type } = event.detail;
+      const successMessage = type === 'login' 
+        ? "Great! You've successfully signed in. Now let's set up your profile so I can provide you with personalized assistance."
+        : "Welcome! Your account has been created successfully. Let's set up your profile to get started.";
+      
+      // Send an AI message about successful auth and profile setup
+      sendMessage({
+        role: 'user' as const,
+        parts: [{ type: 'text', text: `I just ${type === 'login' ? 'signed in' : 'created an account'} successfully.` }],
+      });
+    };
+
+    window.addEventListener('authSuccess', handleAuthSuccess as EventListener);
+    
+    return () => {
+      window.removeEventListener('authSuccess', handleAuthSuccess as EventListener);
+    };
+  }, [sendMessage]);
+
+  // Detect OAuth return and trigger success message
+  useEffect(() => {
+    const authIntent = sessionStorage.getItem('authIntent');
+    const storedChatId = sessionStorage.getItem('chatId');
+    
+    // Check if user just returned from OAuth and this is the same chat
+    if (authIntent === 'existing_chat' && storedChatId === id && session && !session.user?.email?.includes('guest-')) {
+      // Clear the stored intent
+      sessionStorage.removeItem('authIntent');
+      sessionStorage.removeItem('chatId');
+      
+      // Send success message to continue the conversation
+      setTimeout(() => {
+        sendMessage({
+          role: 'user' as const,
+          parts: [{ type: 'text', text: `I just signed in with Google successfully.` }],
+        });
+      }, 1000); // Small delay to ensure chat is ready
+    }
+  }, [id, session, sendMessage]);
+
+  // Listen for save chat before OAuth event
+  useEffect(() => {
+    const handleSaveChatBeforeOAuth = async (event: CustomEvent) => {
+      const { chatId } = event.detail;
+      
+      if (chatId === id && messages.length > 0) {
+        try {
+          // Force save the current chat to database
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: chatId,
+              messages: messages,
+              selectedChatModel: initialChatModel,
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to save chat before OAuth:', error);
+        }
+      }
+    };
+
+    window.addEventListener('saveChatBeforeOAuth', handleSaveChatBeforeOAuth as any);
+    
+    return () => {
+      window.removeEventListener('saveChatBeforeOAuth', handleSaveChatBeforeOAuth as any);
+    };
+  }, [id, messages, initialChatModel]);
+
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
     fetcher,
@@ -156,25 +251,27 @@ export function Chat({
           selectedModelId={initialChatModel}
         />
 
-        <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-          {!isReadonly && (
-            <MultimodalInput
-              chatId={id}
-              input={input}
-              setInput={setInput}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              selectedVisibilityType={visibilityType}
-              selectedModelId={initialChatModel}
-              usage={usage}
-            />
-          )}
-        </div>
+        {(
+          <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
+            {!isReadonly && (
+              <MultimodalInput
+                chatId={id}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                sendMessage={sendMessage}
+                selectedVisibilityType={visibilityType}
+                selectedModelId={initialChatModel}
+                usage={usage}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <Artifact

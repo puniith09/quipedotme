@@ -8,7 +8,7 @@ import {
   streamText,
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
+import { type RequestHints, systemPrompt, profileManagementPrompt } from '@/lib/ai/prompts';
 import {
   createStreamId,
   deleteChatById,
@@ -26,6 +26,9 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { getSupermemoryTools } from '@/lib/ai/tools/supermemory';
+import { getProfileManagementTools } from '@/lib/ai/tools/profile-management';
+import { showAuthForm } from '@/lib/ai/tools/show-auth-form';
+import { profileSetup } from '@/lib/ai/tools/profile-setup';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -68,11 +71,39 @@ export function getStreamContext() {
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
 
+  let json: any;
   try {
-    const json = await request.json();
+    json = await request.json();
+  } catch (error) {
+    console.error('Failed to parse JSON from request body:', error);
+    return new ChatSDKError(
+      'bad_request:api',
+      'Request body must be valid JSON'
+    ).toResponse();
+  }
+
+  try {
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
-    return new ChatSDKError('bad_request:api').toResponse();
+  } catch (error) {
+    console.error('Request body validation error:', error);
+    console.error('Received request body:', JSON.stringify(json, null, 2));
+    
+    // If it's a Zod validation error, provide more specific feedback
+    if (error && typeof error === 'object' && 'issues' in error) {
+      const issues = (error as any).issues;
+      const firstIssue = issues[0];
+      if (firstIssue) {
+        return new ChatSDKError(
+          'bad_request:api',
+          `Invalid request: ${firstIssue.path.join('.')} - ${firstIssue.message}`
+        ).toResponse();
+      }
+    }
+    
+    return new ChatSDKError(
+      'bad_request:api',
+      'Invalid request body format'
+    ).toResponse();
   }
 
   try {
@@ -88,7 +119,16 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
-    const session = await auth();
+    let session;
+    try {
+      session = await auth();
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return new ChatSDKError(
+        'unauthorized:chat',
+        'Authentication service unavailable'
+      ).toResponse();
+    }
 
     if (!session?.user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
@@ -117,6 +157,8 @@ export async function POST(request: Request) {
         userId: session.user.id,
         title,
         visibility: selectedVisibilityType,
+        chatType: 'profile_management',
+        targetUsername: null,
       });
     } else {
       if (chat.userId !== session.user.id) {
@@ -156,22 +198,24 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
-        const supermemoryTools = getSupermemoryTools(session);
-        const hasSupermemoryTools = supermemoryTools !== null;
+        const profileManagementTools = getProfileManagementTools(session);
+        const hasProfileTools = profileManagementTools !== null;
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: hasProfileTools 
+            ? `${profileManagementPrompt}\n\n${systemPrompt({ selectedChatModel, requestHints })}`
+            : systemPrompt({ selectedChatModel, requestHints }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
-              : hasSupermemoryTools
-                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'addMemory', 'searchMemories'] as any)
-                : ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions'],
+              : hasProfileTools
+                ? (['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'updateProfileInfo', 'searchMyProfile', 'addMemory', 'searchMemories', 'showAuthForm', 'profileSetup'] as any)
+                : ['getWeather', 'createDocument', 'updateDocument', 'requestSuggestions', 'showAuthForm', 'profileSetup'],
           experimental_transform: smoothStream({ chunking: 'word' }),
-          tools: hasSupermemoryTools
+          tools: hasProfileTools
             ? {
                 getWeather,
                 createDocument: createDocument({ session, dataStream }),
@@ -180,7 +224,9 @@ export async function POST(request: Request) {
                   session,
                   dataStream,
                 }),
-                ...supermemoryTools!,
+                showAuthForm,
+                profileSetup,
+                ...profileManagementTools!,
               }
             : {
                 getWeather,
@@ -190,6 +236,8 @@ export async function POST(request: Request) {
                   session,
                   dataStream,
                 }),
+                showAuthForm,
+                profileSetup,
               },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

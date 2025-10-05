@@ -1,14 +1,24 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
+import { useParams, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
+  const pathname = usePathname();
+  const params = useParams();
+  const { data: session } = useSession();
+
+  const handleGoogleSignIn = async () => {
+    // Always redirect to home after OAuth - messages will be automatically merged
+    signIn('google', { callbackUrl: '/' });
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/' })}
+      onClick={handleGoogleSignIn}
       className="w-full"
     >
       <svg

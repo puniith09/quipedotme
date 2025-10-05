@@ -6,6 +6,7 @@ import { auth } from '../(auth)/auth';
 import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
+import { ChatTransferHandler } from '@/components/chat-transfer-handler';
 
 export const experimental_ppr = true;
 
@@ -29,6 +30,7 @@ export default async function Layout({
           <SidebarInset>{children}</SidebarInset>
         </SidebarProvider>
         <PWAInstallPrompt />
+        <ChatTransferHandler />
       </DataStreamProvider>
     </>
   );
