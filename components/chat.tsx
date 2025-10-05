@@ -161,6 +161,27 @@ export function Chat({
     };
   }, [sendMessage]);
 
+  // Detect OAuth return and trigger success message
+  useEffect(() => {
+    const authIntent = sessionStorage.getItem('authIntent');
+    const storedChatId = sessionStorage.getItem('chatId');
+    
+    // Check if user just returned from OAuth and this is the same chat
+    if (authIntent === 'existing_chat' && storedChatId === id && session && !session.user?.email?.includes('guest-')) {
+      // Clear the stored intent
+      sessionStorage.removeItem('authIntent');
+      sessionStorage.removeItem('chatId');
+      
+      // Send success message to continue the conversation
+      setTimeout(() => {
+        sendMessage({
+          role: 'user' as const,
+          parts: [{ type: 'text', text: `I just signed in with Google successfully.` }],
+        });
+      }, 1000); // Small delay to ensure chat is ready
+    }
+  }, [id, session, sendMessage]);
+
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
     fetcher,

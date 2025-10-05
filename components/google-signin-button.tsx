@@ -1,14 +1,33 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
+import { useParams, usePathname } from 'next/navigation';
 import { Button } from './ui/button';
 
 export function GoogleSignInButton() {
+  const pathname = usePathname();
+  const params = useParams();
+  
+  // Determine the callback URL - preserve current chat if we're in one
+  const callbackUrl = pathname.startsWith('/chat/') ? pathname : '/';
+
+  const handleGoogleSignIn = () => {
+    // Store auth intent in sessionStorage to handle success message later
+    if (pathname === '/') {
+      sessionStorage.setItem('authIntent', 'initial_signup');
+    } else {
+      sessionStorage.setItem('authIntent', 'existing_chat');
+      sessionStorage.setItem('chatId', pathname.split('/').pop() || '');
+    }
+    
+    signIn('google', { callbackUrl });
+  };
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => signIn('google', { callbackUrl: '/' })}
+      onClick={handleGoogleSignIn}
       className="w-full"
     >
       <svg
