@@ -3,16 +3,24 @@ import { getChatById, transferGuestChatsToUser } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 import { NextRequest } from 'next/server';
 
+/**
+ * Transfer chat ownership from guest user to authenticated user
+ * This API handles the seamless transition of chat ownership when users
+ * log in after starting a conversation as a guest
+ */
 export async function POST(request: NextRequest) {
   try {
+    // Verify user is authenticated
     const session = await auth();
     
     if (!session?.user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
+    // Extract chat transfer parameters
     const { chatId, guestUserId } = await request.json();
 
+    // Validate required parameters
     if (!chatId || !guestUserId) {
       return new ChatSDKError(
         'bad_request:api',
@@ -27,17 +35,16 @@ export async function POST(request: NextRequest) {
       return new ChatSDKError('not_found:chat').toResponse();
     }
 
+    // Ensure the chat actually belongs to the guest user
     if (chat.userId !== guestUserId) {
       return new ChatSDKError('forbidden:chat').toResponse();
     }
 
-    // Check if guest user email pattern
-    const guestEmailPattern = /^guest-\d+/;
+    // TODO: Add additional validation to ensure guestUserId is actually a guest
+    // const guestEmailPattern = /^guest-\d+/;
     
-    // We need to get the guest user to verify it's actually a guest
-    // For now, we'll transfer based on the email pattern check done on frontend
-    
-    // Transfer chats from guest user to authenticated user
+    // Transfer all chats from guest user to authenticated user
+    // This preserves the user's conversation history across the login transition
     await transferGuestChatsToUser({
       guestUserId,
       newUserId: session.user.id,
