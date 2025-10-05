@@ -182,6 +182,38 @@ export function Chat({
     }
   }, [id, session, sendMessage]);
 
+  // Listen for save chat before OAuth event
+  useEffect(() => {
+    const handleSaveChatBeforeOAuth = async (event: CustomEvent) => {
+      const { chatId } = event.detail;
+      
+      if (chatId === id && messages.length > 0) {
+        try {
+          // Force save the current chat to database
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: chatId,
+              messages: messages,
+              selectedChatModel: initialChatModel,
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to save chat before OAuth:', error);
+        }
+      }
+    };
+
+    window.addEventListener('saveChatBeforeOAuth', handleSaveChatBeforeOAuth as any);
+    
+    return () => {
+      window.removeEventListener('saveChatBeforeOAuth', handleSaveChatBeforeOAuth as any);
+    };
+  }, [id, messages, initialChatModel]);
+
   const { data: votes } = useSWR<Array<Vote>>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,
     fetcher,

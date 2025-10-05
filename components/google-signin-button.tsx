@@ -7,20 +7,31 @@ import { Button } from './ui/button';
 export function GoogleSignInButton() {
   const pathname = usePathname();
   const params = useParams();
-  
-  // Determine the callback URL - preserve current chat if we're in one
-  const callbackUrl = pathname.startsWith('/chat/') ? pathname : '/';
 
-  const handleGoogleSignIn = () => {
-    // Store auth intent in sessionStorage to handle success message later
-    if (pathname === '/') {
-      sessionStorage.setItem('authIntent', 'initial_signup');
-    } else {
+  const handleGoogleSignIn = async () => {
+    if (pathname.startsWith('/chat/')) {
+      const chatId = pathname.split('/').pop() || '';
+      
+      // Store auth intent and chat ID
       sessionStorage.setItem('authIntent', 'existing_chat');
-      sessionStorage.setItem('chatId', pathname.split('/').pop() || '');
+      sessionStorage.setItem('chatId', chatId);
+      
+      // Force save the current chat before OAuth redirect
+      const saveEvent = new CustomEvent('saveChatBeforeOAuth', { 
+        detail: { chatId } 
+      });
+      window.dispatchEvent(saveEvent);
+      
+      // Small delay to allow chat to be saved
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Return to the same chat after OAuth
+      signIn('google', { callbackUrl: pathname });
+    } else {
+      // For root page, redirect to root after OAuth
+      sessionStorage.setItem('authIntent', 'oauth_return');
+      signIn('google', { callbackUrl: '/' });
     }
-    
-    signIn('google', { callbackUrl });
   };
 
   return (
